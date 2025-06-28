@@ -1,0 +1,149 @@
+Build a comprehensive educational kindness platform called PeaceBoard combining empathy-building games, AI-powered guidance, a mindfulness music center, leaderboards, real-time analytics, and school-integrated authentication — all in a clean, calm, mobile-friendly interface.
+
+📖 Core Deliverables
+Empathy Games System
+
+20+ functional educational games including:
+
+Empathy scenarios (multiple choice with feedback)
+
+Kindness activity generators
+
+Points, progress tracking, star ratings
+
+Leaderboard with rankings and achievements
+
+Difficulty & category filtering
+
+Grid/List view toggle
+
+Smooth Framer Motion animations on interactions
+
+Peace Music Center
+
+6 curated calming tracks (nature sounds, ambient music, bells)
+
+Full-featured music player: play/pause, skip, volume, seek
+
+Categories: Nature, Meditation, Ambient, Instrumental
+
+Integrated wellness tips (deep breathing, mindfulness guides)
+
+Fully mobile-optimized layout
+
+AI Chatbot
+
+GPT-4o-mini powered assistant for emotional support and Q&A
+
+Additional APIs:
+
+HuggingFace Text Gen API
+
+Emotion Detection API
+
+Suggestion Recommendation API
+
+Voice input via Web Speech API
+
+Typing animations, emoji reactions, quick reply suggestions
+
+Full-screen modern side sheet panel with calm gradient background
+
+School Login & Guest Access
+
+Dedicated School login with secure authentication
+
+Guest login via UUID-based sessions (24-hour expiry, localStorage)
+
+Unified Auth page with tabs: School | Student | Guest
+
+Smooth About → Auth → Home navigation flow
+
+About page as first landing screen introducing the platform’s mission, features, and “Get Started” button
+
+Leaderboard
+
+Track player ranks, weekly high scores, achievements
+
+Filter by game, difficulty, category
+
+Integrated with games and progress tracking
+
+Real-time Analytics
+
+Classroom insights for teachers/schools (usage, scores, participation)
+
+Accessible via protected dashboard routes
+
+Navigation & UI
+
+Mobile-first, fully responsive TailwindCSS styling
+
+Light/Dark theme toggle across all pages
+
+Accessible, consistent routing structure with error pages
+
+📁 Final Folder Structure
+plaintext
+Copy
+Edit
+PeaceBoard/
+├── client/
+│   ├── index.html
+│   └── src/
+│       ├── components/
+│       │   ├── ui/
+│       │   ├── analytics/
+│       │   ├── games/
+│       │   ├── messages/
+│       │   ├── FloatingChatbot.tsx
+│       │   ├── Navigation.tsx
+│       │   ├── SchoolLoginForm.tsx
+│       │   ├── AboutCard.tsx
+│       │   └── ThemeProvider.tsx
+│       ├── hooks/
+│       ├── lib/
+│       ├── pages/
+│       │   ├── About.tsx
+│       │   ├── Auth.tsx
+│       │   ├── Dashboard.tsx
+│       │   ├── Games.tsx
+│       │   ├── Home.tsx
+│       │   ├── Leaderboard.tsx
+│       │   ├── MessageBoard.tsx
+│       │   ├── MusicCenter.tsx
+│       │   └── NotFound.tsx
+│       ├── App.tsx
+│       ├── index.css
+│       └── main.tsx
+├── server/
+│   ├── db.ts
+│   ├── index.ts
+│   ├── openai.ts
+│   ├── replitAuth.ts
+│   ├── schoolAuth.ts
+│   ├── routes.ts
+│   ├── leaderboardRoutes.ts
+│   ├── storage.ts
+│   └── vite.ts
+├── shared/
+│   ├── schema.ts
+│   └── types.ts
+├── drizzle.config.ts
+├── package.json
+├── postcss.config.js
+├── tailwind.config.ts
+├── tsconfig.json
+└── vite.config.ts
+📣 Final Note for Testing & Validation
+✅ I’ve fixed guest account creation and session handling, with proper UUID sessions and 24-hour expiry.
+✅ About page is now the first landing screen describing the mission and features, with a clean Get Started CTA leading to the unified Auth page.
+✅ Guest users can freely explore all features (games, music, leaderboard, chatbot) with instant access.
+✅ Theme toggle persists across all views.
+✅ Please verify:
+
+Guest session creation by clicking Start Exploring under the Guest tab
+
+Smooth navigation from About → Auth → Home
+
+Full access to all platform features as a guest
