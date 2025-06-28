@@ -86,7 +86,7 @@ export default function About() {
             whileTap={{ scale: 0.95 }}
           >
             <Button
-              onClick={() => setLocation("/auth")}
+              onClick={() => setLocation("/login")}
               className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-primary to-primary text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
               size="lg"
             >

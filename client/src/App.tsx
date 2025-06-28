@@ -10,6 +10,7 @@ import FloatingChatbot from "@/components/FloatingChatbot";
 // Pages
 import About from "@/pages/About";
 import Auth from "@/pages/Auth";
+import Login from "@/pages/Login";
 import Home from "@/pages/Home";
 import Games from "@/pages/Games";
 import MusicCenter from "@/pages/MusicCenter";
@@ -21,6 +22,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={About} />
+      <Route path="/login" component={Login} />
       <Route path="/auth" component={Auth} />
       <Route path="/home" component={Home} />
       <Route path="/games" component={Games} />

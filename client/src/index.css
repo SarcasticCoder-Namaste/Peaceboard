@@ -125,3 +125,27 @@
 * {
   transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
 }
+
+/* Fix text layering issues */
+.text-layer-fix {
+  position: relative;
+  z-index: 10;
+}
+
+/* Ensure proper stacking order */
+.card-content {
+  position: relative;
+  z-index: 1;
+}
+
+.floating-element {
+  z-index: 1000;
+}
+
+.navigation-bar {
+  z-index: 50;
+}
+
+.modal-overlay {
+  z-index: 100;
+}

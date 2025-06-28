@@ -216,10 +216,12 @@ export class DatabaseStorage implements IStorage {
       .innerJoin(userAchievements, eq(achievements.id, userAchievements.achievementId))
       .where(eq(userAchievements.userId, userId));
     
-    return results.map(result => ({
-      ...result.achievements,
-      earnedAt: result.user_achievements.earnedAt
-    }));
+    return results
+      .filter(result => result.user_achievements.earnedAt !== null)
+      .map(result => ({
+        ...result.achievements,
+        earnedAt: result.user_achievements.earnedAt as Date
+      }));
   }
 
   async awardAchievement(userId: string, achievementId: number): Promise<UserAchievement> {
