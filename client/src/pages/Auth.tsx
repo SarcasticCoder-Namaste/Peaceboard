@@ -79,7 +79,11 @@ export default function Auth() {
 
   const guestMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("POST", "/api/auth/guest", {});
+      const response = await apiRequest("POST", "/api/auth/guest", {
+        firstName: "Guest",
+        lastName: "User",
+        sessionDuration: 24 * 60 // 24 hours in minutes
+      });
       return response.json();
     },
     onSuccess: (user) => {
@@ -318,7 +322,7 @@ export default function Auth() {
                   <Alert className="mb-6 border-accent/20 bg-accent/10">
                     <Info className="h-4 w-4 text-accent" />
                     <AlertDescription className="text-slate-700 dark:text-slate-300">
-                      Guest sessions last 24 hours and include full access to games, music, and AI guidance.
+                      Guest sessions last 24 hours. No personal information required - just click to start exploring!
                     </AlertDescription>
                   </Alert>
 
