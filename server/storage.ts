@@ -172,18 +172,7 @@ export class DatabaseStorage implements IStorage {
 
     const leaderboardData = await db
       .select({
-        id: users.id,
-        email: users.email,
-        firstName: users.firstName,
-        lastName: users.lastName,
-        profileImageUrl: users.profileImageUrl,
-        userType: users.userType,
-        schoolDomain: users.schoolDomain,
-        studentId: users.studentId,
-        schoolCode: users.schoolCode,
-        guestSessionExpiry: users.guestSessionExpiry,
-        createdAt: users.createdAt,
-        updatedAt: users.updatedAt,
+        user: users,
         totalPoints: sql<number>`COALESCE(SUM(${userProgress.pointsEarned}), 0)`,
       })
       .from(users)
@@ -192,9 +181,10 @@ export class DatabaseStorage implements IStorage {
       .groupBy(users.id)
       .orderBy(desc(sql`COALESCE(SUM(${userProgress.pointsEarned}), 0)`));
 
-    return leaderboardData.map((user, index) => ({
-      ...user,
+    return leaderboardData.map((row, index) => ({
+      ...row.user,
       rank: index + 1,
+      totalPoints: row.totalPoints,
     }));
   }
 

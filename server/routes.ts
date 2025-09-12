@@ -4,53 +4,170 @@ import { storage } from "./storage";
 import { z } from "zod";
 import { chatWithAI, generateGameFeedback } from "./openai";
 import { insertUserProgressSchema, insertChatConversationSchema } from "@shared/schema";
+import { AuthService } from "./auth";
+import { authenticate, requireSchoolAdmin, requireTeacher, requireStudent, authRateLimit } from "./middleware";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Auth routes
-  app.post("/api/auth/guest", async (req, res) => {
+  // Authentication Routes
+  
+  // Guest user creation
+  app.post("/api/auth/guest", authRateLimit(10, 5), async (req, res) => {
     try {
-      const user = await storage.createGuestUser();
-      res.json(user);
+      const { firstName, lastName, sessionDuration } = req.body;
+      
+      if (!firstName) {
+        return res.status(400).json({ message: "First name is required" });
+      }
+
+      const user = await AuthService.createGuestUser({
+        firstName,
+        lastName,
+        sessionDuration
+      });
+
+      // Create session token for guest
+      const sessionToken = AuthService.generateSessionToken();
+      const jwtToken = AuthService.generateJWT(user);
+
+      res.cookie('sessionToken', sessionToken, { 
+        httpOnly: true, 
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: (sessionDuration || 60) * 60 * 1000 // Convert to milliseconds
+      });
+
+      res.json({ 
+        user, 
+        token: jwtToken,
+        sessionToken,
+        expiresIn: sessionDuration || 60
+      });
     } catch (error) {
       console.error("Error creating guest user:", error);
       res.status(500).json({ message: "Failed to create guest session" });
     }
   });
 
-  app.post("/api/auth/school", async (req, res) => {
+  // User registration
+  app.post("/api/auth/register", authRateLimit(5, 15), async (req, res) => {
     try {
-      const { schoolDomain, adminId, password } = req.body;
-      // TODO: Implement actual school authentication
-      // For now, create a school user
-      const userId = `school_${adminId}`;
-      const user = await storage.upsertUser({
-        id: userId,
-        userType: "school",
-        schoolDomain,
-        email: `${adminId}@${schoolDomain}`,
+      const { 
+        email, 
+        username, 
+        password, 
+        firstName, 
+        lastName, 
+        userType, 
+        schoolCode, 
+        classId, 
+        grade 
+      } = req.body;
+
+      const registerData = {
+        email,
+        username,
+        password,
+        firstName,
+        lastName,
+        userType,
+        schoolCode,
+        classId,
+        grade
+      };
+
+      const user = await AuthService.registerUser(registerData);
+      const result = await AuthService.loginUser({
+        email: user.email || undefined,
+        username: user.username || undefined,
+        password,
+        userType
       });
-      res.json(user);
+
+      res.cookie('sessionToken', result.sessionToken, { 
+        httpOnly: true, 
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+      });
+
+      res.status(201).json(result);
     } catch (error) {
-      console.error("Error authenticating school:", error);
-      res.status(500).json({ message: "School authentication failed" });
+      console.error("Registration error:", error);
+      res.status(400).json({ message: error instanceof Error ? error.message : "Registration failed" });
     }
   });
 
-  app.post("/api/auth/student", async (req, res) => {
+  // User login
+  app.post("/api/auth/login", authRateLimit(10, 15), async (req, res) => {
     try {
-      const { studentId, schoolCode } = req.body;
-      // TODO: Implement actual student authentication
-      const userId = `student_${studentId}`;
-      const user = await storage.upsertUser({
-        id: userId,
-        userType: "student",
-        studentId,
-        schoolCode,
+      const { email, username, password, userType } = req.body;
+
+      if ((!email && !username) || !password || !userType) {
+        return res.status(400).json({ message: "Email/username, password, and user type are required" });
+      }
+
+      const result = await AuthService.loginUser({
+        email,
+        username,
+        password,
+        userType
       });
-      res.json(user);
+
+      res.cookie('sessionToken', result.sessionToken, { 
+        httpOnly: true, 
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+      });
+
+      res.json(result);
     } catch (error) {
-      console.error("Error authenticating student:", error);
-      res.status(500).json({ message: "Student authentication failed" });
+      console.error("Login error:", error);
+      res.status(401).json({ message: error instanceof Error ? error.message : "Login failed" });
+    }
+  });
+
+  // User logout
+  app.post("/api/auth/logout", authenticate, async (req, res) => {
+    try {
+      if (req.sessionToken) {
+        await AuthService.logoutUser(req.sessionToken);
+      }
+      
+      res.clearCookie('sessionToken');
+      res.json({ message: "Logged out successfully" });
+    } catch (error) {
+      console.error("Logout error:", error);
+      res.status(500).json({ message: "Logout failed" });
+    }
+  });
+
+  // Get current user profile
+  app.get("/api/auth/profile", authenticate, async (req, res) => {
+    try {
+      res.json({ user: req.user });
+    } catch (error) {
+      console.error("Profile error:", error);
+      res.status(500).json({ message: "Failed to get profile" });
+    }
+  });
+
+  // Validate session
+  app.get("/api/auth/validate", async (req, res) => {
+    try {
+      const sessionToken = req.cookies?.sessionToken || req.headers.authorization?.substring(7);
+      
+      if (!sessionToken) {
+        return res.status(401).json({ valid: false, message: "No session token" });
+      }
+
+      const user = await AuthService.validateSession(sessionToken);
+      
+      if (!user) {
+        return res.status(401).json({ valid: false, message: "Invalid session" });
+      }
+
+      res.json({ valid: true, user });
+    } catch (error) {
+      console.error("Session validation error:", error);
+      res.status(500).json({ valid: false, message: "Validation failed" });
     }
   });
 

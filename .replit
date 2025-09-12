@@ -4,6 +4,7 @@ hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
 
 [nix]
 channel = "stable-24_05"
+packages = ["firebase-tools"]
 
 [deployment]
 deploymentTarget = "autoscale"
@@ -13,6 +14,10 @@ run = ["npm", "run", "start"]
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[[ports]]
+localPort = 37731
+externalPort = 3000
 
 [workflows]
 runButton = "Project"
@@ -34,3 +39,6 @@ author = "agent"
 task = "shell.exec"
 args = "npm run dev"
 waitForPort = 5000
+
+[agent]
+integrations = ["javascript_log_in_with_replit==1.0.0", "javascript_database==1.0.0", "javascript_openai==1.0.0"]
