@@ -1,19 +1,21 @@
 import * as functions from "firebase-functions";
 import express from "express";
 import cors from "cors";
+const cookieParser = require("cookie-parser");
 import { z } from "zod";
 
 // Import your existing modules
-import { storage } from "../../server/storage";
-import { chatWithAI, generateGameFeedback } from "../../server/openai";
-import { insertUserProgressSchema, insertChatConversationSchema } from "../../shared/schema";
-import { AuthService } from "../../server/auth";
-import { authenticate, requireSchoolAdmin, authRateLimit } from "../../server/middleware";
+import { storage } from "./server/storage";
+import { chatWithAI, generateGameFeedback } from "./server/openai";
+import { insertUserProgressSchema, insertChatConversationSchema } from "./shared/schema";
+import { AuthService } from "./server/auth";
+import { authenticate, requireSchoolAdmin, authRateLimit } from "./server/middleware";
 
 const app = express();
 
 // Middleware
-app.use(cors());
+app.use(cors({ credentials: true }));
+app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
