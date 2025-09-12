@@ -70,7 +70,7 @@ app.post("/api/auth/guest", authRateLimit(10, 5), async (req, res) => {
       maxAge: (sessionDuration || 60) * 60 * 1000
     });
 
-    res.json({ 
+    return res.json({ 
       user, 
       token: jwtToken,
       sessionToken,
@@ -118,7 +118,7 @@ app.post("/api/auth/register", authRateLimit(5, 15), async (req, res) => {
       maxAge: 24 * 60 * 60 * 1000 // 24 hours
     });
 
-    res.status(201).json({ 
+    return res.status(201).json({ 
       user, 
       token,
       message: "Registration successful" 
@@ -152,7 +152,7 @@ app.post("/api/auth/login", authRateLimit(10, 15), async (req, res) => {
       maxAge: 24 * 60 * 60 * 1000 // 24 hours
     });
 
-    res.json({ 
+    return res.json({ 
       user, 
       token,
       message: "Login successful" 
@@ -168,7 +168,7 @@ app.post("/api/auth/login", authRateLimit(10, 15), async (req, res) => {
 app.post("/api/auth/logout", async (req, res) => {
   try {
     res.clearCookie('sessionToken');
-    res.json({ message: "Logout successful" });
+    return res.json({ message: "Logout successful" });
   } catch (error) {
     console.error("Logout error:", error);
     return res.status(500).json({ message: "Logout failed" });
@@ -181,7 +181,7 @@ app.get("/api/auth/profile", authenticate, async (req, res) => {
     if (!user) {
       return res.status(401).json({ message: "User not authenticated" });
     }
-    res.json({ user });
+    return res.json({ user });
   } catch (error) {
     console.error("Profile fetch error:", error);
     return res.status(500).json({ message: "Failed to fetch profile" });
@@ -210,13 +210,13 @@ app.get("/api/auth/validate", async (req, res) => {
       });
     }
 
-    res.json({ 
+    return res.json({ 
       valid: true, 
       user 
     });
   } catch (error) {
     console.error("Session validation error:", error);
-    res.status(401).json({ 
+    return res.status(401).json({ 
       valid: false, 
       message: "Session validation failed" 
     });
@@ -227,10 +227,10 @@ app.get("/api/auth/validate", async (req, res) => {
 app.get("/api/games", async (req, res) => {
   try {
     const games = await storage.getAllGames();
-    res.json(games);
+    return res.json(games);
   } catch (error) {
     console.error("Error fetching games:", error);
-    res.status(500).json({ message: "Failed to fetch games" });
+    return res.status(500).json({ message: "Failed to fetch games" });
   }
 });
 
@@ -253,18 +253,20 @@ app.post("/api/user-progress", authenticate, async (req, res) => {
     if (progressData.completed && progressData.score !== undefined) {
       try {
         const games = await storage.getAllGames();
-        const game = games.find(g => g.id === Number(progressData.gameId));
-        if (game) {
-          const feedback = await generateGameFeedback(game, progressData.score);
-          res.json({ progress, feedback });
-          return;
+        const gameId = progressData.gameId;
+        if (gameId !== null && gameId !== undefined) {
+          const game = games.find(g => g.id === gameId);
+          if (game) {
+            const feedback = await generateGameFeedback(game, progressData.score);
+            return res.json({ progress, feedback });
+          }
         }
       } catch (feedbackError) {
         console.error("Failed to generate feedback:", feedbackError);
       }
     }
 
-    res.json({ progress });
+    return res.json({ progress });
   } catch (error) {
     console.error("Error saving user progress:", error);
     if (error instanceof z.ZodError) {
@@ -301,7 +303,7 @@ app.post("/api/chat", authenticate, async (req, res) => {
     };
 
     const savedConversation = await storage.saveChatConversation(fullConversation);
-    res.json({ 
+    return res.json({ 
       message: response,
       conversationId: savedConversation.id
     });
@@ -315,10 +317,10 @@ app.post("/api/chat", authenticate, async (req, res) => {
 app.get("/api/music", async (req, res) => {
   try {
     const music = await storage.getAllMusicTracks();
-    res.json(music);
+    return res.json(music);
   } catch (error) {
     console.error("Error fetching music:", error);
-    res.status(500).json({ message: "Failed to fetch music" });
+    return res.status(500).json({ message: "Failed to fetch music" });
   }
 });
 
@@ -327,10 +329,10 @@ app.get("/api/leaderboard", authenticate, async (req, res) => {
   try {
     const { period = "all" } = req.query;
     const leaderboard = await storage.getLeaderboard(period as string);
-    res.json(leaderboard);
+    return res.json(leaderboard);
   } catch (error) {
     console.error("Error fetching leaderboard:", error);
-    res.status(500).json({ message: "Failed to fetch leaderboard" });
+    return res.status(500).json({ message: "Failed to fetch leaderboard" });
   }
 });
 
@@ -338,10 +340,10 @@ app.get("/api/leaderboard", authenticate, async (req, res) => {
 app.get("/api/analytics/overview", authenticate, requireSchoolAdmin, async (req, res) => {
   try {
     const analytics = await storage.getAnalytics();
-    res.json(analytics);
+    return res.json(analytics);
   } catch (error) {
     console.error("Error fetching analytics:", error);
-    res.status(500).json({ message: "Failed to fetch analytics" });
+    return res.status(500).json({ message: "Failed to fetch analytics" });
   }
 });
 
