@@ -255,7 +255,7 @@ app.post("/api/user-progress", authenticate, async (req, res) => {
         const games = await storage.getAllGames();
         const gameId = progressData.gameId;
         if (gameId !== null && gameId !== undefined) {
-          const game = games.find(g => g.id === gameId);
+          const game = games.find(g => g.id === Number(gameId));
           if (game) {
             const feedback = await generateGameFeedback(game, progressData.score);
             return res.json({ progress, feedback });
