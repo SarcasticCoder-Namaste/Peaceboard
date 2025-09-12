@@ -19,11 +19,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "First name is required" });
       }
 
-      const user = await AuthService.createGuestUser({
-        firstName,
-        lastName,
-        sessionDuration
-      });
+      // Create temporary guest user (no database needed)
+      const guestId = `guest_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+      const duration = sessionDuration || (24 * 60); // Default 24 hours
+      const expiryTime = new Date(Date.now() + duration * 60 * 1000);
+
+      const user = {
+        id: guestId,
+        firstName: firstName,
+        lastName: lastName || '',
+        userType: 'guest',
+        guestSessionExpiry: expiryTime,
+        isActive: true,
+        username: null,
+        email: null,
+        schoolId: null,
+        classId: null,
+        grade: null
+      };
 
       // Create session token for guest
       const sessionToken = AuthService.generateSessionToken();
@@ -32,14 +45,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.cookie('sessionToken', sessionToken, { 
         httpOnly: true, 
         secure: process.env.NODE_ENV === 'production',
-        maxAge: (sessionDuration || 60) * 60 * 1000 // Convert to milliseconds
+        maxAge: duration * 60 * 1000 // Convert to milliseconds
       });
 
       res.json({ 
         user, 
         token: jwtToken,
         sessionToken,
-        expiresIn: sessionDuration || 60
+        expiresIn: duration
       });
     } catch (error) {
       console.error("Error creating guest user:", error);
