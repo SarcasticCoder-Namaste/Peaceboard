@@ -2,10 +2,13 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto-js';
 import { db } from './db';
-import { users, userSessions, passwordResets, schools, classes } from '../shared/schema';
+import { users, userSessions, schools, classes } from '../shared/schema';
 import { eq, and, gt } from 'drizzle-orm';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'peaceboard-secret-key';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error("JWT_SECRET environment variable is required");
+}
 const SALT_ROUNDS = 12;
 
 export interface AuthUser {
@@ -72,7 +75,7 @@ export class AuthService {
         userType: user.userType,
         schoolId: user.schoolId,
       },
-      JWT_SECRET,
+      JWT_SECRET as string,
       { expiresIn: '7d' }
     );
   }
@@ -80,7 +83,7 @@ export class AuthService {
   // Verify JWT token
   static verifyJWT(token: string): any {
     try {
-      return jwt.verify(token, JWT_SECRET);
+      return jwt.verify(token, JWT_SECRET as string);
     } catch (error) {
       return null;
     }

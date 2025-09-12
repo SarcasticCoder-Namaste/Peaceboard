@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "public": "dist/client",
+    "public": "dist/public",
     "ignore": [
       "firebase.json",
       "**/.*",
@@ -31,6 +31,7 @@
   "functions": {
     "source": "functions",
     "predeploy": [
+      "npm run build",
       "npm --prefix functions run build"
     ]
   },

@@ -26,6 +26,7 @@
     "jsonwebtoken": "^9.0.2",
     "crypto-js": "^4.2.0",
     "openai": "^5.8.2",
+    "ws": "^8.18.0",
     "zod": "^3.24.2",
     "zod-validation-error": "^3.4.0"
   },
@@ -35,6 +36,7 @@
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/crypto-js": "^4.2.2",
+    "@types/ws": "^8.5.12",
     "@types/cookie-parser": "^1.4.7",
     "typescript": "5.6.3"
   },

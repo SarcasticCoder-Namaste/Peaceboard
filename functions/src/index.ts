@@ -11,10 +11,24 @@ import { insertUserProgressSchema, insertChatConversationSchema } from "./shared
 import { AuthService } from "./server/auth";
 import { authenticate, requireSchoolAdmin, authRateLimit } from "./server/middleware";
 
+// Environment validation
+if (!process.env.DATABASE_URL) {
+  throw new Error("DATABASE_URL environment variable is required");
+}
+if (!process.env.JWT_SECRET) {
+  throw new Error("JWT_SECRET environment variable is required");
+}
+if (!process.env.OPENAI_API_KEY) {
+  throw new Error("OPENAI_API_KEY environment variable is required");
+}
+
 const app = express();
 
 // Middleware
-app.use(cors({ credentials: true }));
+app.use(cors({
+  credentials: true,
+  origin: ["http://localhost:5000", "https://peaceboard-app.web.app", "https://peaceboard-app.firebaseapp.com"]
+}));
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
