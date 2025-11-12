@@ -12,6 +12,7 @@ import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { School, GraduationCap, UserCircle, Info, Heart, ArrowLeft } from "lucide-react";
+import logoImage from "@assets/generated_images/PeaceBoard_educational_platform_logo_a1809512.png";
 
 export default function Login() {
   const [, setLocation] = useLocation();
@@ -134,9 +135,11 @@ export default function Login() {
           </Button>
           
           <div className="flex items-center justify-center space-x-3 mb-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-primary to-secondary rounded-xl flex items-center justify-center text-white font-bold text-xl">
-              P
-            </div>
+            <img 
+              src={logoImage} 
+              alt="PeaceBoard Logo" 
+              className="w-12 h-12 rounded-xl object-contain"
+            />
             <h1 className="text-3xl font-bold text-slate-900 dark:text-white">PeaceBoard</h1>
           </div>
           

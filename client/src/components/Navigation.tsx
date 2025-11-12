@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Sun, Moon, Menu, User, LogOut } from "lucide-react";
 import { motion } from "framer-motion";
+import logoImage from "@assets/generated_images/PeaceBoard_educational_platform_logo_a1809512.png";
 
 export default function Navigation() {
   const [location] = useLocation();
@@ -56,9 +57,11 @@ export default function Navigation() {
               whileHover={{ scale: 1.05 }}
               className="flex items-center space-x-3 cursor-pointer"
             >
-              <div className="w-10 h-10 bg-gradient-to-br from-primary to-secondary rounded-xl flex items-center justify-center text-white font-bold text-lg">
-                P
-              </div>
+              <img 
+                src={logoImage} 
+                alt="PeaceBoard Logo" 
+                className="w-10 h-10 rounded-xl object-contain"
+              />
               <span className="text-xl font-bold text-slate-900 dark:text-white">PeaceBoard</span>
             </motion.div>
           </Link>
