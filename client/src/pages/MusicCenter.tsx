@@ -22,14 +22,14 @@ export default function MusicCenter() {
     },
   });
 
-  // Mock data for demonstration since we don't have actual audio files
+  // Royalty-free music tracks from archive.org and other free sources
   const mockTracks = [
     {
       id: 1,
       title: "Forest Meditation",
       category: "nature",
       duration: 510,
-      audioUrl: "https://www.soundjay.com/misc/sounds/forest-1.mp3",
+      audioUrl: "https://ia801408.us.archive.org/32/items/ForestAtmosphere/Forest%20Atmosphere.mp3",
       thumbnailUrl: "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=150&h=150&fit=crop",
       description: "Peaceful forest sounds for meditation"
     },
@@ -38,7 +38,7 @@ export default function MusicCenter() {
       title: "Ocean Waves",
       category: "nature",
       duration: 405,
-      audioUrl: "https://www.soundjay.com/misc/sounds/ocean-1.mp3",
+      audioUrl: "https://ia801503.us.archive.org/29/items/ocean-waves-nature-sounds/Ocean%20Waves%20-%20Nature%20Sounds.mp3",
       thumbnailUrl: "https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=150&h=150&fit=crop",
       description: "Calming ocean waves"
     },
@@ -47,7 +47,7 @@ export default function MusicCenter() {
       title: "Tibetan Bells",
       category: "meditation",
       duration: 620,
-      audioUrl: "https://www.soundjay.com/misc/sounds/bell-1.mp3",
+      audioUrl: "https://ia601402.us.archive.org/2/items/TibetanBellsMeditation/Tibetan%20Bells%20Meditation.mp3",
       thumbnailUrl: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=150&h=150&fit=crop",
       description: "Traditional meditation bells"
     },
@@ -56,27 +56,45 @@ export default function MusicCenter() {
       title: "Gentle Rain",
       category: "nature",
       duration: 735,
-      audioUrl: "https://www.soundjay.com/misc/sounds/rain-1.mp3",
+      audioUrl: "https://ia601504.us.archive.org/14/items/rain-sounds-8-hours/Rain%20Sounds%208%20Hours.mp3",
       thumbnailUrl: "https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?w=150&h=150&fit=crop",
       description: "Soft rainfall sounds"
     },
     {
       id: 5,
-      title: "Ambient Peace",
-      category: "ambient",
+      title: "Peaceful Piano",
+      category: "instrumental",
       duration: 480,
-      audioUrl: "https://www.soundjay.com/misc/sounds/ambient-1.mp3",
-      thumbnailUrl: "https://images.unsplash.com/photo-1518837695005-2083093ee35b?w=150&h=150&fit=crop",
-      description: "Peaceful ambient soundscape"
+      audioUrl: "https://ia601609.us.archive.org/8/items/kevinmacleod-royaltyfreemusic-26/Kevin%20MacLeod%20~%20Gymnopedie%20No%201.mp3",
+      thumbnailUrl: "https://images.unsplash.com/photo-1520523839897-bd0b52f945a0?w=150&h=150&fit=crop",
+      description: "Gentle piano melodies for relaxation"
     },
     {
       id: 6,
-      title: "Piano Serenity",
-      category: "instrumental",
+      title: "Ambient Meditation",
+      category: "ambient",
       duration: 360,
-      audioUrl: "https://www.soundjay.com/misc/sounds/piano-1.mp3",
-      thumbnailUrl: "https://images.unsplash.com/photo-1520523839897-bd0b52f945a0?w=150&h=150&fit=crop",
-      description: "Gentle piano melodies"
+      audioUrl: "https://ia601305.us.archive.org/25/items/kevinmacleod-royaltyfreemusic-24/Kevin%20MacLeod%20~%20Meditation%20Impromptu%2001.mp3",
+      thumbnailUrl: "https://images.unsplash.com/photo-1518837695005-2083093ee35b?w=150&h=150&fit=crop",
+      description: "Peaceful ambient soundscape for mindfulness"
+    },
+    {
+      id: 7,
+      title: "Serenity Garden",
+      category: "meditation",
+      duration: 540,
+      audioUrl: "https://ia601305.us.archive.org/25/items/kevinmacleod-royaltyfreemusic-24/Kevin%20MacLeod%20~%20Meditation%20Impromptu%2002.mp3",
+      thumbnailUrl: "https://images.unsplash.com/photo-1499209974431-9dddcece7f88?w=150&h=150&fit=crop",
+      description: "Tranquil meditation music"
+    },
+    {
+      id: 8,
+      title: "Calm Waters",
+      category: "ambient",
+      duration: 420,
+      audioUrl: "https://ia801609.us.archive.org/8/items/kevinmacleod-royaltyfreemusic-26/Kevin%20MacLeod%20~%20Satie%20Gymnopedie%20No%203.mp3",
+      thumbnailUrl: "https://images.unsplash.com/photo-1505142468610-359e7d316be0?w=150&h=150&fit=crop",
+      description: "Soothing ambient music for peace"
     }
   ];
 
