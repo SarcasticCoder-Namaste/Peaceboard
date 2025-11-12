@@ -77,7 +77,11 @@ export default function Login() {
 
   const guestMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("POST", "/api/auth/guest", {});
+      const response = await apiRequest("POST", "/api/auth/guest", {
+        firstName: "Guest",
+        lastName: "User",
+        sessionDuration: 1440
+      });
       return response.json();
     },
     onSuccess: (user) => {
