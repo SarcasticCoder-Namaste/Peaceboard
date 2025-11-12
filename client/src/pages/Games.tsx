@@ -18,7 +18,111 @@ export default function Games() {
   const [selectedGame, setSelectedGame] = useState<any>(null);
   const { user } = useAuth();
 
-  const { data: games = [], isLoading } = useQuery({
+  // Mock games data as fallback when database is unavailable
+  const mockGames = [
+    {
+      id: 1,
+      title: "The Empathy Circle",
+      description: "Learn to understand different perspectives by walking in someone else's shoes.",
+      category: "empathy",
+      difficulty: "beginner",
+      points: 50,
+      content: {
+        scenarios: [
+          {
+            question: "A classmate seems upset after getting their test back. What should you do?",
+            options: [
+              { text: "Ask if they're okay and offer support", points: 10, feedback: "Great! Showing care and offering support demonstrates empathy." },
+              { text: "Tell them it's just a test and not important", points: 2, feedback: "While you're trying to help, dismissing their feelings isn't empathetic." },
+              { text: "Ignore them to give them space", points: 5, feedback: "Sometimes space helps, but checking in shows you care." }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      id: 2,
+      title: "Kindness Chain Reaction",
+      description: "Discover how small acts of kindness can spread throughout a community.",
+      category: "kindness",
+      difficulty: "beginner",
+      points: 60,
+      content: {
+        scenarios: [
+          {
+            question: "You see someone drop their books in the hallway. What do you do?",
+            options: [
+              { text: "Help them pick up their books", points: 10, feedback: "Perfect! This simple act of kindness can brighten someone's day." },
+              { text: "Keep walking to avoid being late", points: 3, feedback: "Being on time is important, but helping others is valuable too." },
+              { text: "Point out that they dropped something", points: 6, feedback: "Alerting them helps, but offering to help is even kinder." }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      id: 3,
+      title: "Conflict Resolution Academy",
+      description: "Practice resolving disagreements peacefully and finding win-win solutions.",
+      category: "conflict-resolution",
+      difficulty: "intermediate",
+      points: 80,
+      content: {
+        scenarios: [
+          {
+            question: "Two friends are arguing about which game to play. How can you help?",
+            options: [
+              { text: "Suggest they take turns choosing games", points: 10, feedback: "Excellent! Finding a compromise helps everyone feel heard." },
+              { text: "Tell them to stop fighting", points: 4, feedback: "Stopping the conflict is good, but solving the problem is better." },
+              { text: "Choose a completely different game for them", points: 6, feedback: "Creative thinking, but involving them in the solution is more effective." }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      id: 4,
+      title: "Social Skills Simulator",
+      description: "Practice important social interactions in a safe, supportive environment.",
+      category: "social-skills",
+      difficulty: "intermediate",
+      points: 70,
+      content: {
+        scenarios: [
+          {
+            question: "You want to join a group of classmates who are talking. What's the best approach?",
+            options: [
+              { text: "Wait for a pause and politely ask to join", points: 10, feedback: "Perfect! Being respectful and waiting for the right moment shows good social awareness." },
+              { text: "Jump into the conversation immediately", points: 4, feedback: "Enthusiasm is good, but timing and respect matter in social situations." },
+              { text: "Stand nearby hoping they notice you", points: 6, feedback: "Sometimes this works, but being more direct is usually better." }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      id: 5,
+      title: "Emotional Intelligence Explorer",
+      description: "Learn to recognize and understand different emotions in yourself and others.",
+      category: "empathy",
+      difficulty: "advanced",
+      points: 90,
+      content: {
+        scenarios: [
+          {
+            question: "Your friend seems happy but their voice sounds sad. What might be happening?",
+            options: [
+              { text: "They might be hiding their true feelings", points: 10, feedback: "Excellent emotional awareness! People sometimes mask their feelings." },
+              { text: "They're probably just tired", points: 5, feedback: "Possible, but looking deeper into emotional cues is important." },
+              { text: "Nothing, they said they're happy", points: 3, feedback: "Words and emotions don't always match - body language and tone matter too." }
+            ]
+          }
+        ]
+      }
+    }
+  ];
+
+  const { data: gamesData = [], isLoading } = useQuery({
     queryKey: ["/api/games"],
   });
 
@@ -26,6 +130,9 @@ export default function Games() {
     queryKey: [`/api/progress/${user?.id}`],
     enabled: !!user,
   });
+
+  // Use mock games if database is unavailable
+  const games = gamesData.length > 0 ? gamesData : mockGames;
 
   // Filter games
   const filteredGames = games.filter((game: any) => {

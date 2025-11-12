@@ -79,7 +79,7 @@ export default function Navigation() {
               <div className="hidden md:flex items-center space-x-3 px-3 py-2 bg-slate-100 dark:bg-slate-800 rounded-lg">
                 <User className="w-4 h-4" />
                 <span className="text-sm font-medium">
-                  {user.firstName || user.email || `${user.userType.charAt(0).toUpperCase()}${user.userType.slice(1)}`}
+                  {user.firstName || user.email || (user.userType ? `${user.userType.charAt(0).toUpperCase()}${user.userType.slice(1)}` : "User")}
                 </span>
                 <Button
                   variant="ghost"
@@ -123,9 +123,9 @@ export default function Navigation() {
                       <User className="w-5 h-5" />
                       <div className="flex-1">
                         <p className="font-medium">
-                          {user.firstName || user.email || `${user.userType.charAt(0).toUpperCase()}${user.userType.slice(1)}`}
+                          {user.firstName || user.email || (user.userType ? `${user.userType.charAt(0).toUpperCase()}${user.userType.slice(1)}` : "User")}
                         </p>
-                        <p className="text-xs text-slate-500">{user.userType}</p>
+                        <p className="text-xs text-slate-500">{user.userType || "user"}</p>
                       </div>
                       <Button
                         variant="ghost"
