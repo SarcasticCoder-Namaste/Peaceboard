@@ -22,26 +22,26 @@ export default function Home() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
 
-  const { data: userProgress } = useQuery({
+  const { data: userProgress } = useQuery<any[]>({
     queryKey: [`/api/progress/${user?.id}`],
     enabled: !!user,
   });
 
-  const { data: userRank } = useQuery({
+  const { data: userRank } = useQuery<any>({
     queryKey: [`/api/leaderboard/rank/${user?.id}`],
     enabled: !!user,
   });
 
-  const { data: userAchievements } = useQuery({
+  const { data: userAchievements } = useQuery<any[]>({
     queryKey: [`/api/achievements/${user?.id}`],
     enabled: !!user,
   });
 
   // Mock data for demonstration
   const stats = {
-    gamesCompleted: userProgress?.filter((p: any) => p.completed).length || 12,
-    totalPoints: userProgress?.reduce((sum: number, p: any) => sum + (p.pointsEarned || 0), 0) || 1840,
-    achievements: userAchievements?.length || 7,
+    gamesCompleted: (userProgress && Array.isArray(userProgress)) ? userProgress.filter((p: any) => p.completed).length : 12,
+    totalPoints: (userProgress && Array.isArray(userProgress)) ? userProgress.reduce((sum: number, p: any) => sum + (p.pointsEarned || 0), 0) : 1840,
+    achievements: (userAchievements && Array.isArray(userAchievements)) ? userAchievements.length : 7,
     currentStreak: 5,
     rank: userRank?.rank || 12,
     weeklyProgress: 75,
