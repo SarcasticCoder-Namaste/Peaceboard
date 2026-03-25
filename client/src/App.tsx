@@ -30,6 +30,7 @@ function Router() {
       <Route path="/music" component={MusicCenter} />
       <Route path="/leaderboard" component={Leaderboard} />
       <Route path="/analytics" component={Analytics} />
+      <Route path="/check-emotion" component={FaceAnalysis} />
       <Route path="/face-analysis" component={FaceAnalysis} />
       <Route component={NotFound} />
     </Switch>
