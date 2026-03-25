@@ -21,6 +21,7 @@ export default function Navigation() {
     { href: "/games", label: "Games", icon: "🎮" },
     { href: "/music", label: "Music", icon: "🎵" },
     { href: "/leaderboard", label: "Leaderboard", icon: "🏆" },
+    { href: "/face-analysis", label: "Face CV", icon: "📷" },
     ...(isAdmin ? [{ href: "/analytics", label: "Analytics", icon: "📊" }] : []),
   ];
 
