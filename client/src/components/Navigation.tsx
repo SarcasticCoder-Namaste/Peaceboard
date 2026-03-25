@@ -4,7 +4,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Sun, Moon, Menu, User, LogOut } from "lucide-react";
+import { Sun, Moon, Menu, User, LogOut, LogIn } from "lucide-react";
 import { motion } from "framer-motion";
 import logoImage from "@assets/generated_images/PeaceBoard_educational_platform_logo_a1809512.png";
 
@@ -14,13 +14,14 @@ export default function Navigation() {
   const { user, logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
 
+  const isAdmin = user?.userType === "school_admin" || user?.userType === "teacher";
+
   const navigationItems = [
-    { href: "/", label: "About", icon: "📖" },
-    { href: "/home", label: "Home", icon: "🏠" },
+    ...(user ? [{ href: "/home", label: "Dashboard", icon: "🏠" }] : []),
     { href: "/games", label: "Games", icon: "🎮" },
     { href: "/music", label: "Music", icon: "🎵" },
     { href: "/leaderboard", label: "Leaderboard", icon: "🏆" },
-    ...(user?.userType === "school" ? [{ href: "/analytics", label: "Analytics", icon: "📊" }] : []),
+    ...(isAdmin ? [{ href: "/analytics", label: "Analytics", icon: "📊" }] : []),
   ];
 
   const NavLink = ({ href, label, icon, mobile = false }: { href: string; label: string; icon: string; mobile?: boolean }) => {
@@ -75,7 +76,7 @@ export default function Navigation() {
 
           {/* Theme Toggle & User Actions */}
           <div className="flex items-center space-x-4">
-            {user && (
+            {user ? (
               <div className="hidden md:flex items-center space-x-3 px-3 py-2 bg-slate-100 dark:bg-slate-800 rounded-lg">
                 <User className="w-4 h-4" />
                 <span className="text-sm font-medium">
@@ -90,6 +91,16 @@ export default function Navigation() {
                   <LogOut className="w-4 h-4" />
                 </Button>
               </div>
+            ) : (
+              <Link href="/login">
+                <Button
+                  size="sm"
+                  className="hidden md:flex items-center space-x-2 bg-gradient-to-r from-primary to-secondary text-white"
+                >
+                  <LogIn className="w-4 h-4" />
+                  <span>Sign In</span>
+                </Button>
+              </Link>
             )}
             
             <Button

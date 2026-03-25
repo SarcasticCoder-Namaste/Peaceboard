@@ -114,6 +114,18 @@ PeaceBoard is a comprehensive educational platform focused on empathy-building, 
 
 Changelog:
 - June 28, 2025. Initial setup
+- March 25, 2026. Major fixes and improvements:
+  - Ran database migration (db:push) to create all tables
+  - Fixed AI chatbot: smart keyword-based fallback responses when OpenAI quota exceeded
+  - Fixed AI chatbot: now works for ALL visitors (not just logged-in users)
+  - Fixed auth response parsing bug: Login.tsx and Auth.tsx now correctly extract user object from API response (data.user || data)
+  - Updated music track URLs in database to real working archive.org public domain audio
+  - Added 4 new games to database (9 total): The Listening Challenge, Gratitude Garden, Boundary Builders, Words That Heal
+  - Fixed Navigation: correct school_admin userType check for Analytics menu item
+  - Added Sign In button in Navigation for unauthenticated users
+  - Added Dashboard link in Navigation for authenticated users
+  - Landing page (/) now automatically redirects logged-in users to /home dashboard
+  - Updated seed data to use real archive.org music URLs for future deployments
 
 ## User Preferences
 

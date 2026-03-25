@@ -109,42 +109,56 @@ export async function seedDatabase() {
       }
     ]);
 
-    // Seed Music Tracks
+    // Seed Music Tracks with real public domain audio from archive.org
     await db.insert(musicTracks).values([
       {
-        title: "Forest Rain",
+        title: "Forest Atmosphere",
         category: "nature",
         duration: 300,
-        audioUrl: "https://example.com/forest-rain.mp3",
-        description: "Gentle rain sounds with forest ambiance"
+        audioUrl: "https://ia801408.us.archive.org/32/items/ForestAtmosphere/Forest%20Atmosphere.mp3",
+        description: "Gentle forest sounds with birdsong and rustling leaves"
       },
       {
         title: "Ocean Waves",
-        category: "nature", 
+        category: "nature",
         duration: 420,
-        audioUrl: "https://example.com/ocean-waves.mp3",
-        description: "Peaceful ocean waves for relaxation"
+        audioUrl: "https://ia801503.us.archive.org/29/items/ocean-waves-nature-sounds/Ocean%20Waves%20-%20Nature%20Sounds.mp3",
+        description: "Peaceful ocean waves for relaxation and focus"
       },
       {
-        title: "Mindful Breathing",
+        title: "Tibetan Bells Meditation",
         category: "meditation",
         duration: 600,
-        audioUrl: "https://example.com/mindful-breathing.mp3",
-        description: "Guided breathing exercise for mindfulness"
+        audioUrl: "https://ia601402.us.archive.org/2/items/TibetanBellsMeditation/Tibetan%20Bells%20Meditation.mp3",
+        description: "Soothing Tibetan bells for deep meditation"
       },
       {
-        title: "Peaceful Piano",
+        title: "Gymnopedie No. 1",
         category: "instrumental",
-        duration: 480,
-        audioUrl: "https://example.com/peaceful-piano.mp3",
-        description: "Soft piano melodies for concentration"
+        duration: 210,
+        audioUrl: "https://ia601609.us.archive.org/8/items/kevinmacleod-royaltyfreemusic-26/Kevin%20MacLeod%20~%20Gymnopedie%20No%201.mp3",
+        description: "Beautiful piano piece by Kevin MacLeod — peaceful and reflective"
       },
       {
-        title: "Ambient Space",
+        title: "Meditation Impromptu",
         category: "ambient",
-        duration: 720,
-        audioUrl: "https://example.com/ambient-space.mp3",
-        description: "Spacious ambient sounds for deep relaxation"
+        duration: 180,
+        audioUrl: "https://ia601305.us.archive.org/25/items/kevinmacleod-royaltyfreemusic-24/Kevin%20MacLeod%20~%20Meditation%20Impromptu%2001.mp3",
+        description: "Calming ambient meditation music"
+      },
+      {
+        title: "Meditation Impromptu 2",
+        category: "meditation",
+        duration: 195,
+        audioUrl: "https://ia601305.us.archive.org/25/items/kevinmacleod-royaltyfreemusic-24/Kevin%20MacLeod%20~%20Meditation%20Impromptu%2002.mp3",
+        description: "Gentle meditation music for mindfulness practice"
+      },
+      {
+        title: "Gymnopedie No. 3",
+        category: "instrumental",
+        duration: 225,
+        audioUrl: "https://ia801609.us.archive.org/8/items/kevinmacleod-royaltyfreemusic-26/Kevin%20MacLeod%20~%20Satie%20Gymnopedie%20No%203.mp3",
+        description: "Peaceful piano piece perfect for calm reflection"
       }
     ]);
 

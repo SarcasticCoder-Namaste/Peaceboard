@@ -38,8 +38,8 @@ export default function Auth() {
       const response = await apiRequest("POST", "/api/auth/school", data);
       return response.json();
     },
-    onSuccess: (user) => {
-      login(user);
+    onSuccess: (data) => {
+      login(data.user || data);
       toast({
         title: "Welcome back!",
         description: "Successfully logged in to your school dashboard.",
@@ -60,8 +60,8 @@ export default function Auth() {
       const response = await apiRequest("POST", "/api/auth/student", data);
       return response.json();
     },
-    onSuccess: (user) => {
-      login(user);
+    onSuccess: (data) => {
+      login(data.user || data);
       toast({
         title: "Welcome!",
         description: "Successfully logged in to your learning space.",
@@ -81,13 +81,13 @@ export default function Auth() {
     mutationFn: async () => {
       const response = await apiRequest("POST", "/api/auth/guest", {
         firstName: "Guest",
-        lastName: "User",
-        sessionDuration: 24 * 60 // 24 hours in minutes
+        lastName: "Explorer",
+        sessionDuration: 24 * 60
       });
       return response.json();
     },
-    onSuccess: (user) => {
-      login(user);
+    onSuccess: (data) => {
+      login(data.user || data);
       toast({
         title: "Welcome, guest!",
         description: "Your 24-hour session has started. Enjoy exploring PeaceBoard!",

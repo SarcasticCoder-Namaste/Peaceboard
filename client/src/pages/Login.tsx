@@ -37,8 +37,8 @@ export default function Login() {
       const response = await apiRequest("POST", "/api/auth/school", data);
       return response.json();
     },
-    onSuccess: (user) => {
-      login(user);
+    onSuccess: (data) => {
+      login(data.user || data);
       toast({
         title: "Welcome back!",
         description: "Successfully logged in to your school dashboard.",
@@ -59,8 +59,8 @@ export default function Login() {
       const response = await apiRequest("POST", "/api/auth/student", data);
       return response.json();
     },
-    onSuccess: (user) => {
-      login(user);
+    onSuccess: (data) => {
+      login(data.user || data);
       toast({
         title: "Welcome!",
         description: "Successfully logged in. Ready to start learning!",
@@ -80,13 +80,13 @@ export default function Login() {
     mutationFn: async () => {
       const response = await apiRequest("POST", "/api/auth/guest", {
         firstName: "Guest",
-        lastName: "User",
+        lastName: "Explorer",
         sessionDuration: 1440
       });
       return response.json();
     },
-    onSuccess: (user) => {
-      login(user);
+    onSuccess: (data) => {
+      login(data.user || data);
       toast({
         title: "Welcome, Guest!",
         description: "You now have temporary access to explore PeaceBoard.",

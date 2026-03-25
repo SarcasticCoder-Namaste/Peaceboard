@@ -1,11 +1,20 @@
+import { useEffect } from "react";
 import { motion } from "framer-motion";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Heart, Gamepad2, Music, Bot, Trophy, BarChart3, Shield } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function About() {
   const [, setLocation] = useLocation();
+  const { user, isLoading } = useAuth();
+
+  useEffect(() => {
+    if (!isLoading && user) {
+      setLocation("/home");
+    }
+  }, [user, isLoading, setLocation]);
 
   const features = [
     {

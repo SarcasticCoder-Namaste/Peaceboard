@@ -71,10 +71,8 @@ export default function FloatingChatbot() {
 
   const chatMutation = useMutation({
     mutationFn: async (message: string) => {
-      if (!user) throw new Error("User not authenticated");
-      
       const response = await apiRequest("POST", "/api/chat", {
-        userId: user.id,
+        userId: user?.id || null,
         message,
       });
       return response.json();
@@ -100,7 +98,7 @@ export default function FloatingChatbot() {
   });
 
   const handleSendMessage = () => {
-    if (!inputMessage.trim() || !user) return;
+    if (!inputMessage.trim()) return;
 
     const userMessage: Message = {
       role: "user",
@@ -289,7 +287,7 @@ export default function FloatingChatbot() {
                       onKeyPress={handleKeyPress}
                       placeholder="Type your message..."
                       className="pr-12"
-                      disabled={chatMutation.isPending || !user}
+                      disabled={chatMutation.isPending}
                     />
                     <Button
                       variant="ghost"
@@ -304,19 +302,13 @@ export default function FloatingChatbot() {
                   </div>
                   <Button
                     onClick={handleSendMessage}
-                    disabled={!inputMessage.trim() || chatMutation.isPending || !user}
+                    disabled={!inputMessage.trim() || chatMutation.isPending}
                     className="bg-gradient-to-r from-primary to-secondary text-white shadow-lg"
                     size="icon"
                   >
                     <Send className="w-4 h-4" />
                   </Button>
                 </div>
-                
-                {!user && (
-                  <p className="text-xs text-slate-500 mt-2 text-center">
-                    Please log in to use the chatbot
-                  </p>
-                )}
               </div>
             </motion.div>
           </>

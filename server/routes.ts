@@ -342,20 +342,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { userId, message } = req.body;
       
+      if (!message || typeof message !== "string" || !message.trim()) {
+        return res.status(400).json({ message: "Message is required" });
+      }
+
       // Get AI response
       const aiResponse = await chatWithAI(message);
       
-      // Save conversation
-      const conversationData = insertChatConversationSchema.parse({
-        userId,
-        messages: [
-          { role: "user", content: message, timestamp: new Date() },
-          { role: "assistant", content: aiResponse, timestamp: new Date() }
-        ]
-      });
+      // Only save conversation for non-guest users who exist in the database
+      const isGuest = !userId || String(userId).startsWith("guest_");
+      if (!isGuest) {
+        try {
+          const conversationData = insertChatConversationSchema.parse({
+            userId,
+            messages: [
+              { role: "user", content: message, timestamp: new Date() },
+              { role: "assistant", content: aiResponse, timestamp: new Date() }
+            ]
+          });
+          await storage.saveChatConversation(conversationData);
+        } catch (saveError) {
+          // Non-critical: log but don't fail the response
+          console.error("Failed to save chat conversation:", saveError);
+        }
+      }
       
-      const conversation = await storage.saveChatConversation(conversationData);
-      res.json({ response: aiResponse, conversation });
+      res.json({ response: aiResponse });
     } catch (error) {
       console.error("Error processing chat:", error);
       res.status(500).json({ message: "Failed to process chat message" });
