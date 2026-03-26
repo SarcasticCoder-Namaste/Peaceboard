@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { seedDatabase } from "./seedData";
+import { runMigrations } from "./migrations";
 
 const app = express();
 app.use(express.json());
@@ -40,6 +41,8 @@ app.use((req, res, next) => {
 (async () => {
   // Seed the database with initial data
   await seedDatabase();
+  // Run migrations to ensure comprehensive content
+  await runMigrations();
   
   const server = await registerRoutes(app);
 

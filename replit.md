@@ -114,6 +114,14 @@ PeaceBoard is a comprehensive educational platform focused on empathy-building, 
 
 Changelog:
 - June 28, 2025. Initial setup
+- March 26, 2026. Comprehensive content expansion:
+  - All 9 games expanded to 6-8 scenarios each with detailed educational feedback
+  - Music library expanded to 12 tracks with artwork thumbnails and categories
+  - MusicPlayer upgraded: auto-play on selection, error recovery, skip-on-fail, animated vinyl disc
+  - MusicCenter redesigned: category counts, "Now Playing" sidebar with artwork, improved layout
+  - Database migration system (server/migrations.ts) added for future content updates
+  - Face CV feature renamed to "Check Your Emotion" with comprehensive AI analysis
+  - Firebase: configured and initialized (API key, project ID, app ID) but not used for auth (uses backend JWT)
 - March 25, 2026. Major fixes and improvements:
   - Ran database migration (db:push) to create all tables
   - Fixed AI chatbot: smart keyword-based fallback responses when OpenAI quota exceeded
