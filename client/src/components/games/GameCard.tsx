@@ -4,7 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { generateStarRating } from "@/lib/utils";
-import { Play, Trophy, Star, Heart, Users, Handshake, Lightbulb } from "lucide-react";
+import { Play, Trophy, Star, Heart, Users, Handshake, Lightbulb, Brain, Zap, ListOrdered } from "lucide-react";
+
+const GAME_TYPE_META: Record<string, { label: string; icon: any; color: string }> = {
+  scenarios: { label: "Scenarios", icon: Lightbulb, color: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" },
+  "memory-match": { label: "Memory Match", icon: Brain, color: "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300" },
+  "speed-round": { label: "Speed Round", icon: Zap, color: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300" },
+  sequence: { label: "Sequence", icon: ListOrdered, color: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300" },
+};
 
 interface GameCardProps {
   game: any;
@@ -39,6 +46,9 @@ export default function GameCard({ game, viewMode, userProgress, onPlay, delay =
   const isCompleted = userProgress?.completed || false;
   const stars = userProgress?.stars || 0;
   const starRating = generateStarRating(stars);
+  const gameType = (game.content as any)?.gameType || "scenarios";
+  const typeMeta = GAME_TYPE_META[gameType] || GAME_TYPE_META.scenarios;
+  const TypeIcon = typeMeta.icon;
 
   if (viewMode === "list") {
     return (
@@ -69,15 +79,16 @@ export default function GameCard({ game, viewMode, userProgress, onPlay, delay =
                     {game.description}
                   </p>
                   
-                  <div className="flex items-center space-x-4">
+                  <div className="flex items-center flex-wrap gap-2">
                     <Badge className={difficultyColors[game.difficulty]}>
                       {game.difficulty}
                     </Badge>
-                    
                     <Badge variant="outline">
                       {game.category.replace("-", " ")}
                     </Badge>
-                    
+                    <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${typeMeta.color}`}>
+                      <TypeIcon className="w-3 h-3" /> {typeMeta.label}
+                    </span>
                     <div className="flex items-center space-x-1">
                       <Trophy className="w-4 h-4 text-yellow-500" />
                       <span className="text-sm text-slate-600 dark:text-slate-300">
@@ -180,15 +191,16 @@ export default function GameCard({ game, viewMode, userProgress, onPlay, delay =
             </p>
           </div>
           
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex flex-col space-y-2">
-              <Badge className={difficultyColors[game.difficulty]} variant="secondary">
-                {game.difficulty}
-              </Badge>
-              <Badge variant="outline" className="text-xs">
-                {game.category.replace("-", " ")}
-              </Badge>
-            </div>
+          <div className="flex flex-wrap gap-1.5 mb-4">
+            <Badge className={difficultyColors[game.difficulty]} variant="secondary">
+              {game.difficulty}
+            </Badge>
+            <Badge variant="outline" className="text-xs">
+              {game.category.replace("-", " ")}
+            </Badge>
+            <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${typeMeta.color}`}>
+              <TypeIcon className="w-3 h-3" /> {typeMeta.label}
+            </span>
           </div>
 
           {userProgress && !isCompleted && userProgress.score !== undefined && (

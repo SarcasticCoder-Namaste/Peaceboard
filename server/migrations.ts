@@ -584,6 +584,69 @@ const COMPREHENSIVE_GAMES = [
   }
 ];
 
+const INTERACTIVE_GAMES = [
+  {
+    title: "Emotion Memory Match",
+    description: "Flip cards to match emotions with real-life situations. Train your brain to recognize feelings fast!",
+    category: "empathy",
+    difficulty: "beginner",
+    points: 80,
+    content: {
+      gameType: "memory-match",
+      pairs: [
+        { emotion: "Empathy", situation: "Comforting a crying friend without being asked" },
+        { emotion: "Gratitude", situation: "Thanking your teacher after extra help" },
+        { emotion: "Courage", situation: "Speaking up when you see someone being bullied" },
+        { emotion: "Patience", situation: "Waiting calmly while someone explains slowly" },
+        { emotion: "Kindness", situation: "Sharing your lunch with someone who forgot theirs" },
+        { emotion: "Respect", situation: "Listening without interrupting when someone talks" },
+        { emotion: "Forgiveness", situation: "Letting go of anger after a friend apologizes" },
+        { emotion: "Compassion", situation: "Helping an elderly person cross the street" },
+      ]
+    }
+  },
+  {
+    title: "Kindness Speed Challenge",
+    description: "True or False — quick fire! Can you identify kindness and empathy facts before time runs out?",
+    category: "kindness",
+    difficulty: "intermediate",
+    points: 100,
+    content: {
+      gameType: "speed-round",
+      timePerQuestion: 10,
+      questions: [
+        { statement: "Ignoring someone's feelings is a form of empathy.", correct: false, explanation: "Empathy means actively acknowledging and sharing in someone else's feelings — ignoring them is the opposite." },
+        { statement: "A small act of kindness, like smiling at someone, can improve their entire day.", correct: true, explanation: "Research shows that even micro-moments of kindness release oxytocin and boost mood for both giver and receiver." },
+        { statement: "You must agree with someone to show them empathy.", correct: false, explanation: "Empathy is about understanding feelings, not necessarily agreeing. You can validate emotions without sharing the opinion." },
+        { statement: "Helping someone only when it benefits you is still considered genuine kindness.", correct: false, explanation: "Genuine kindness is unconditional — it's done without expecting reward or benefit in return." },
+        { statement: "Bullying someone online is just as harmful as bullying in person.", correct: true, explanation: "Cyberbullying can actually be more harmful because victims can't escape it — it follows them home 24/7." },
+        { statement: "Expressing your own feelings honestly is part of healthy social skills.", correct: true, explanation: "Clear, honest emotional expression is the foundation of healthy relationships and self-advocacy." },
+        { statement: "Conflict always has a winner and a loser.", correct: false, explanation: "Win-win solutions exist in most conflicts — collaboration and understanding lead to outcomes where everyone benefits." },
+        { statement: "Practicing mindfulness can improve how well we empathize with others.", correct: true, explanation: "Mindfulness increases self-awareness and emotional regulation, which are both key components of empathy." },
+      ]
+    }
+  },
+  {
+    title: "Conflict Resolution Steps",
+    description: "Put the steps in the right order to resolve a conflict peacefully. Build real-world social skills!",
+    category: "conflict-resolution",
+    difficulty: "intermediate",
+    points: 90,
+    content: {
+      gameType: "sequence",
+      situation: "You and your friend disagree about a project. They feel their ideas are always ignored and are getting frustrated.",
+      steps: [
+        { id: 1, text: "Take a deep breath and calm yourself before responding", correctPosition: 1 },
+        { id: 2, text: "Ask your friend to share their full perspective without interrupting", correctPosition: 2 },
+        { id: 3, text: "Reflect back what you heard: 'So you feel your ideas aren't valued?'", correctPosition: 3 },
+        { id: 4, text: "Share your own perspective using 'I feel' statements", correctPosition: 4 },
+        { id: 5, text: "Together brainstorm solutions that include both of your ideas", correctPosition: 5 },
+        { id: 6, text: "Agree on a specific plan and check in with each other later", correctPosition: 6 },
+      ]
+    }
+  }
+];
+
 const COMPREHENSIVE_MUSIC = [
   { title: "Forest Atmosphere", category: "nature", duration: 300, audioUrl: "https://ia801408.us.archive.org/32/items/ForestAtmosphere/Forest%20Atmosphere.mp3", description: "Gentle forest sounds with birdsong and rustling leaves for deep focus" },
   { title: "Ocean Waves", category: "nature", duration: 420, audioUrl: "https://ia801503.us.archive.org/29/items/ocean-waves-nature-sounds/Ocean%20Waves%20-%20Nature%20Sounds.mp3", description: "Peaceful ocean waves for relaxation and stress relief" },
@@ -622,7 +685,6 @@ export async function runMigrations() {
 
     if (needsUpdate) {
       console.log("Updating game content with comprehensive scenarios...");
-      // Update each game by title
       for (const gameData of COMPREHENSIVE_GAMES) {
         const existing = existingGames.find(g => g.title === gameData.title);
         if (existing) {
@@ -636,6 +698,16 @@ export async function runMigrations() {
       console.log("Game content updated successfully.");
     } else {
       console.log("Game content already comprehensive — skipping.");
+    }
+
+    // Add interactive game types if not already present
+    const allGames = await db.select().from(games);
+    for (const gameData of INTERACTIVE_GAMES) {
+      const exists = allGames.find(g => g.title === gameData.title);
+      if (!exists) {
+        await db.insert(games).values(gameData);
+        console.log(`Added interactive game: ${gameData.title}`);
+      }
     }
 
     // Update music tracks to ensure full catalog
