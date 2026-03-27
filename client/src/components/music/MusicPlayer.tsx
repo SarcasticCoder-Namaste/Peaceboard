@@ -286,11 +286,8 @@ export default function MusicPlayer({
                 initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
                 <div className="flex items-center gap-2 mb-0.5">
                   <span className="text-sm opacity-70 capitalize">{cat}</span>
-                  {isBuffering && !hasError && (
+                  {isBuffering && (
                     <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full animate-pulse">Loading…</span>
-                  )}
-                  {hasError && (
-                    <span className="text-xs bg-red-500/40 px-2 py-0.5 rounded-full">Skipping…</span>
                   )}
                 </div>
                 <h2 className="text-xl font-bold truncate">
