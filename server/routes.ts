@@ -12,6 +12,9 @@ import {
 } from "@shared/schema";
 import { AuthService } from "./auth";
 import { authenticate, requireSchoolAdmin, requireTeacher, requireStudent, authRateLimit } from "./middleware";
+import { db } from "./db";
+import { users } from "@shared/schema";
+import { eq, sql } from "drizzle-orm";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication Routes
@@ -63,6 +66,109 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error creating guest user:", error);
       res.status(500).json({ message: "Failed to create guest session" });
+    }
+  });
+
+  // School admin login (with first-time auto-setup)
+  // Uses (schoolDomain + adminId) as a stable identity. If no admin exists for
+  // that pair, the password supplied on first call creates the account.
+  app.post("/api/auth/school", authRateLimit(10, 15), async (req, res) => {
+    try {
+      const schoolDomain = String(req.body?.schoolDomain || "").trim().toLowerCase();
+      const adminId = String(req.body?.adminId || "").trim();
+      const password = String(req.body?.password || "");
+      if (!schoolDomain || !adminId || password.length < 6) {
+        return res.status(400).json({
+          message: "School domain, administrator ID and a password (6+ chars) are required",
+        });
+      }
+      const username = `${adminId}@${schoolDomain}`;
+
+      // Try login first
+      try {
+        const result = await AuthService.loginUser({ username, password, userType: "school_admin" });
+        res.cookie("sessionToken", result.sessionToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "lax",
+          maxAge: 7 * 24 * 60 * 60 * 1000,
+        });
+        return res.json(result);
+      } catch (loginErr) {
+        // Fall through to first-time creation when the user doesn't exist
+        const msg = loginErr instanceof Error ? loginErr.message : "";
+        if (!/User not found/i.test(msg)) {
+          return res.status(401).json({ message: msg || "Login failed" });
+        }
+      }
+
+      // First-time setup: only allow when NO school_admin exists yet (system bootstrap).
+      // After that, new admins must be added by an existing admin via /api/admin.
+      const [{ count: adminCount }] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(users)
+        .where(eq(users.userType, "school_admin"));
+      if (adminCount > 0) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+      await AuthService.registerUser({
+        username,
+        password,
+        firstName: adminId,
+        lastName: schoolDomain,
+        userType: "school_admin",
+      });
+      const result = await AuthService.loginUser({ username, password, userType: "school_admin" });
+      res.cookie("sessionToken", result.sessionToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+      });
+      return res.status(201).json({ ...result, created: true });
+    } catch (error) {
+      console.error("School admin login error:", error);
+      res.status(401).json({ message: error instanceof Error ? error.message : "Login failed" });
+    }
+  });
+
+  // Student login (with first-time auto-setup using schoolCode + studentId)
+  app.post("/api/auth/student", authRateLimit(20, 15), async (req, res) => {
+    try {
+      const studentId = String(req.body?.studentId || "").trim();
+      const schoolCode = String(req.body?.schoolCode || "").trim();
+      if (!studentId || !schoolCode) {
+        return res.status(400).json({ message: "Student ID and school code are required" });
+      }
+      const username = `${studentId}@${schoolCode.toLowerCase()}`;
+      const password = `${schoolCode}-${studentId}`; // deterministic for join-code login
+
+      try {
+        const result = await AuthService.loginUser({ username, password, userType: "student" });
+        res.cookie("sessionToken", result.sessionToken, {
+          httpOnly: true, secure: process.env.NODE_ENV === "production",
+          sameSite: "lax", maxAge: 7 * 24 * 60 * 60 * 1000,
+        });
+        return res.json(result);
+      } catch (loginErr) {
+        const msg = loginErr instanceof Error ? loginErr.message : "";
+        if (!/User not found/i.test(msg)) return res.status(401).json({ message: msg || "Login failed" });
+      }
+
+      await AuthService.registerUser({
+        username, password,
+        firstName: `Student ${studentId}`, lastName: schoolCode,
+        userType: "student",
+      });
+      const result = await AuthService.loginUser({ username, password, userType: "student" });
+      res.cookie("sessionToken", result.sessionToken, {
+        httpOnly: true, secure: process.env.NODE_ENV === "production",
+        sameSite: "lax", maxAge: 7 * 24 * 60 * 60 * 1000,
+      });
+      return res.status(201).json({ ...result, created: true });
+    } catch (error) {
+      console.error("Student login error:", error);
+      res.status(401).json({ message: error instanceof Error ? error.message : "Login failed" });
     }
   });
 

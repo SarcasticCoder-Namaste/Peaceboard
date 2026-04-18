@@ -43,7 +43,7 @@ export default function Login() {
         title: "Welcome back!",
         description: "Successfully logged in to your school dashboard.",
       });
-      setLocation("/analytics");
+      setLocation("/admin");
     },
     onError: () => {
       toast({
@@ -232,7 +232,9 @@ export default function Login() {
                   <Alert className="mt-6 border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950">
                     <Info className="h-4 w-4 text-blue-600" />
                     <AlertDescription className="text-blue-700 dark:text-blue-300">
-                      School administrators can view analytics, monitor student progress, and manage classroom activities.
+                      <strong>First time?</strong> Just enter a school domain, an admin ID and a
+                      password (6+ chars) — your admin account will be created and you'll go
+                      straight to the dashboard. Use the same details next time to sign back in.
                     </AlertDescription>
                   </Alert>
                 </CardContent>
