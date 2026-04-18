@@ -10,6 +10,8 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import ScrollToTop from "@/components/ScrollToTop";
 import PageTransition from "@/components/PageTransition";
 import AnimatedBackground from "@/components/AnimatedBackground";
+import BackToTop from "@/components/BackToTop";
+import CommandPalette from "@/components/CommandPalette";
 
 // Pages
 import About from "@/pages/About";
@@ -61,6 +63,8 @@ function App() {
                 </PageTransition>
               </main>
               <FloatingChatbot />
+              <BackToTop />
+              <CommandPalette />
               <Toaster />
             </div>
           </ErrorBoundary>

@@ -11,6 +11,7 @@ import {
   Gamepad2, Music, Trophy, BarChart3, Clock, Star,
   Target, Heart, TrendingUp, Flame, Sparkles, CheckCircle2, User as UserIcon
 } from "lucide-react";
+import Confetti from "@/components/Confetti";
 
 // ─── Daily challenges (rotates daily) ─────────────────────────────────────
 const CHALLENGES = [
@@ -113,9 +114,11 @@ export default function Home() {
   useEffect(() => {
     try { setChallengeDone(localStorage.getItem(chKey) === "1"); } catch {}
   }, [chKey]);
+  const [confettiTrigger, setConfettiTrigger] = useState(0);
   const completeChallenge = () => {
     setChallengeDone(true);
     try { localStorage.setItem(chKey, "1"); } catch {}
+    setConfettiTrigger((n) => n + 1);
   };
 
   const quickActions = [
@@ -131,6 +134,7 @@ export default function Home() {
 
   return (
     <div className="pt-24 pb-16 px-4 sm:px-6 lg:px-8">
+      <Confetti trigger={confettiTrigger} />
       <div className="max-w-7xl mx-auto">
         {/* Welcome Header */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="mb-8">

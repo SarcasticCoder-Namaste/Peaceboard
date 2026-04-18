@@ -28,23 +28,30 @@ export default function Navigation() {
 
   const NavLink = ({ href, label, icon, mobile = false }: { href: string; label: string; icon: string; mobile?: boolean }) => {
     const isActive = location === href;
-    
+
     return (
       <Link href={href}>
         <motion.div
-          whileHover={{ scale: 1.05 }}
+          whileHover={{ scale: 1.04 }}
           whileTap={{ scale: 0.95 }}
-          className={`${
+          className={`relative ${
             mobile ? "flex items-center space-x-3 px-4 py-3 rounded-lg" : "px-3 py-2 rounded-lg text-sm font-medium"
           } transition-colors cursor-pointer ${
             isActive
-              ? "text-primary bg-primary/10"
+              ? "text-primary"
               : "text-slate-600 dark:text-slate-300 hover:text-primary hover:bg-primary/5"
           }`}
           onClick={() => mobile && setIsOpen(false)}
         >
-          {mobile && <span className="text-lg">{icon}</span>}
-          <span>{label}</span>
+          {isActive && (
+            <motion.span
+              layoutId={mobile ? "active-mobile-pill" : "active-nav-pill"}
+              className="absolute inset-0 rounded-lg bg-primary/10 -z-0"
+              transition={{ type: "spring", stiffness: 400, damping: 32 }}
+            />
+          )}
+          {mobile && <span className="relative z-10 text-lg">{icon}</span>}
+          <span className="relative z-10">{label}</span>
         </motion.div>
       </Link>
     );

@@ -298,6 +298,7 @@ export default function FloatingChatbot() {
       {/* Floating button */}
       <motion.div className="fixed bottom-6 right-6 z-40" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.93 }}>
         <Button onClick={() => setIsOpen(true)}
+          aria-label="Open AI assistant"
           className={`w-16 h-16 rounded-full bg-gradient-to-br ${persona.gradient} text-white shadow-2xl`} size="icon">
           <Bot className="w-8 h-8" />
         </Button>
