@@ -6,6 +6,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import Navigation from "@/components/Navigation";
 import FloatingChatbot from "@/components/FloatingChatbot";
+import ErrorBoundary from "@/components/ErrorBoundary";
+import ScrollToTop from "@/components/ScrollToTop";
 
 // Pages
 import About from "@/pages/About";
@@ -46,12 +48,17 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <TooltipProvider>
-          <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 text-slate-900 dark:text-slate-100 transition-all duration-300">
-            <Navigation />
-            <Router />
-            <FloatingChatbot />
-            <Toaster />
-          </div>
+          <ErrorBoundary>
+            <ScrollToTop />
+            <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 text-slate-900 dark:text-slate-100 transition-all duration-300">
+              <Navigation />
+              <main id="main-content" tabIndex={-1} className="outline-none">
+                <Router />
+              </main>
+              <FloatingChatbot />
+              <Toaster />
+            </div>
+          </ErrorBoundary>
         </TooltipProvider>
       </ThemeProvider>
     </QueryClientProvider>

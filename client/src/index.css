@@ -2,6 +2,27 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Accessibility: skip-to-content link, only visible on keyboard focus */
+.skip-link {
+  position: absolute;
+  left: 0.75rem;
+  top: -3rem;
+  z-index: 100;
+  background: #1d4ed8;
+  color: white;
+  padding: 0.5rem 0.875rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+  transition: top 0.2s ease;
+}
+.skip-link:focus {
+  top: 0.75rem;
+  outline: 2px solid white;
+  outline-offset: 2px;
+}
+
 :root {
   --background: hsl(0, 0%, 100%);
   --foreground: hsl(220, 14.3%, 4.1%);
