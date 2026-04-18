@@ -52,6 +52,9 @@ export default function MusicPlayer({
   const onTrackChangeRef   = useRef(onTrackChange);
   const loadedIdRef        = useRef<any>(null);
   const pendingAutoPlayRef = useRef(false); // true → play as soon as canplay fires
+  const loadGenRef         = useRef(0);     // increments per load; stale events ignored
+  const errorStreakRef     = useRef(0);     // consecutive failed tracks; stops infinite skip
+  const skipTimerRef       = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ─── UI state ─────────────────────────────────────────────────
   const [isPlaying,   setIsPlaying]   = useState(false);
@@ -79,25 +82,28 @@ export default function MusicPlayer({
   useEffect(() => {
     const audio = new Audio();
     audio.preload = "auto";
+    // NOTE: do NOT set crossOrigin — many CDNs (incl. SoundHelix) don't send
+    // CORS headers, and <audio> can play cross-origin streams natively without it.
     audioRef.current = audio;
 
     audio.addEventListener("timeupdate", () => {
       setCurrentTime(audio.currentTime);
-      if (audio.buffered.length > 0) {
-        setBufferedPct((audio.buffered.end(audio.buffered.length - 1) / (audio.duration || 1)) * 100);
+      if (audio.buffered.length > 0 && audio.duration > 0 && isFinite(audio.duration)) {
+        setBufferedPct((audio.buffered.end(audio.buffered.length - 1) / audio.duration) * 100);
       }
     });
 
     audio.addEventListener("loadedmetadata", () => {
-      setDuration(audio.duration || 0);
+      setDuration(isFinite(audio.duration) ? audio.duration : 0);
       setIsBuffering(false);
+      errorStreakRef.current = 0; // healthy load resets streak
     });
 
     audio.addEventListener("waiting", () => setIsBuffering(true));
 
     audio.addEventListener("canplay", () => {
       setIsBuffering(false);
-      // If a play was requested before the audio was ready, fire it now
+      errorStreakRef.current = 0;
       if (pendingAutoPlayRef.current) {
         pendingAutoPlayRef.current = false;
         audio.play().catch(() => {
@@ -111,6 +117,7 @@ export default function MusicPlayer({
       setIsPlaying(true);
       setIsBuffering(false);
       isPlayingRef.current = true;
+      errorStreakRef.current = 0;
     });
 
     audio.addEventListener("pause", () => {
@@ -123,23 +130,43 @@ export default function MusicPlayer({
         audio.currentTime = 0;
         audio.play().catch(() => {});
       } else {
-        // Advance to next track and auto-play it
         advanceTrack(true);
       }
     });
 
     audio.addEventListener("error", () => {
-      setHasError(true);
+      // Ignore aborted loads (happens normally when switching tracks)
+      const code = audio.error?.code;
+      if (!audio.src || code === 1 /* MEDIA_ERR_ABORTED */) return;
+
       setIsBuffering(false);
       setIsPlaying(false);
       isPlayingRef.current = false;
-      // Skip broken URL after a short pause
-      setTimeout(() => advanceTrack(true), 1200);
+
+      // Stop cascading skips after enough failures
+      errorStreakRef.current += 1;
+      const maxSkips = Math.max(1, Math.min(tracksRef.current.length, 4));
+      if (errorStreakRef.current >= maxSkips) {
+        pendingAutoPlayRef.current = false;
+        setHasError(true);
+        return;
+      }
+
+      // Debounce: clear any pending skip before scheduling a new one
+      if (skipTimerRef.current) clearTimeout(skipTimerRef.current);
+      skipTimerRef.current = setTimeout(() => {
+        skipTimerRef.current = null;
+        // Honor the user — if they paused during the wait, don't ghost-play
+        if (!pendingAutoPlayRef.current && !isPlayingRef.current) return;
+        advanceTrack(true);
+      }, 800);
     });
 
     return () => {
+      if (skipTimerRef.current) clearTimeout(skipTimerRef.current);
       audio.pause();
-      audio.src = "";
+      audio.removeAttribute("src");
+      audio.load();
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 

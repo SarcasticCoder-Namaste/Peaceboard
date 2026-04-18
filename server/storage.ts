@@ -6,6 +6,9 @@ import {
   userAchievements,
   musicTracks,
   chatConversations,
+  musicFavorites,
+  musicHistory,
+  emotionLogs,
   type User,
   type UpsertUser,
   type Game,
@@ -20,6 +23,12 @@ import {
   type InsertMusicTrack,
   type ChatConversation,
   type InsertChatConversation,
+  type MusicFavorite,
+  type InsertMusicFavorite,
+  type MusicHistory,
+  type InsertMusicHistory,
+  type EmotionLog,
+  type InsertEmotionLog,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, sql, and, gte, count } from "drizzle-orm";
@@ -59,6 +68,19 @@ export interface IStorage {
   getChatHistory(userId: string): Promise<ChatConversation[]>;
   saveChatConversation(conversation: InsertChatConversation): Promise<ChatConversation>;
   
+  // Music favorites
+  getMusicFavorites(userId: string): Promise<MusicFavorite[]>;
+  addMusicFavorite(fav: InsertMusicFavorite): Promise<MusicFavorite>;
+  removeMusicFavorite(userId: string, trackId: string): Promise<void>;
+
+  // Music history
+  getMusicHistory(userId: string, limit?: number): Promise<MusicHistory[]>;
+  addMusicHistory(entry: InsertMusicHistory): Promise<MusicHistory>;
+
+  // Emotion logs
+  getEmotionLogs(userId: string, limit?: number): Promise<EmotionLog[]>;
+  addEmotionLog(entry: InsertEmotionLog): Promise<EmotionLog>;
+
   // Analytics operations
   getAnalytics(): Promise<{
     activeStudents: number;
@@ -249,6 +271,53 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return savedConversation;
+  }
+
+  // Music favorites
+  async getMusicFavorites(userId: string): Promise<MusicFavorite[]> {
+    return await db.select().from(musicFavorites)
+      .where(eq(musicFavorites.userId, userId))
+      .orderBy(desc(musicFavorites.createdAt));
+  }
+
+  async addMusicFavorite(fav: InsertMusicFavorite): Promise<MusicFavorite> {
+    // Avoid duplicates
+    const existing = await db.select().from(musicFavorites)
+      .where(and(eq(musicFavorites.userId, fav.userId), eq(musicFavorites.trackId, fav.trackId)));
+    if (existing.length) return existing[0];
+    const [row] = await db.insert(musicFavorites).values(fav).returning();
+    return row;
+  }
+
+  async removeMusicFavorite(userId: string, trackId: string): Promise<void> {
+    await db.delete(musicFavorites)
+      .where(and(eq(musicFavorites.userId, userId), eq(musicFavorites.trackId, trackId)));
+  }
+
+  // Music history
+  async getMusicHistory(userId: string, limit = 20): Promise<MusicHistory[]> {
+    return await db.select().from(musicHistory)
+      .where(eq(musicHistory.userId, userId))
+      .orderBy(desc(musicHistory.playedAt))
+      .limit(limit);
+  }
+
+  async addMusicHistory(entry: InsertMusicHistory): Promise<MusicHistory> {
+    const [row] = await db.insert(musicHistory).values(entry).returning();
+    return row;
+  }
+
+  // Emotion logs
+  async getEmotionLogs(userId: string, limit = 50): Promise<EmotionLog[]> {
+    return await db.select().from(emotionLogs)
+      .where(eq(emotionLogs.userId, userId))
+      .orderBy(desc(emotionLogs.createdAt))
+      .limit(limit);
+  }
+
+  async addEmotionLog(entry: InsertEmotionLog): Promise<EmotionLog> {
+    const [row] = await db.insert(emotionLogs).values(entry).returning();
+    return row;
   }
 
   // Analytics operations

@@ -143,6 +143,44 @@ export const chatConversations = pgTable("chat_conversations", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Music favorites — per-user saved tracks (track id can be numeric or string slug)
+export const musicFavorites = pgTable("music_favorites", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  trackId: varchar("track_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Music history — per-user recently played tracks
+export const musicHistory = pgTable("music_history", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  trackId: varchar("track_id").notNull(),
+  trackTitle: varchar("track_title"),
+  playedAt: timestamp("played_at").defaultNow(),
+});
+
+// Emotion logs — face analysis results
+export const emotionLogs = pgTable("emotion_logs", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  emotion: varchar("emotion").notNull(),
+  confidence: integer("confidence"),
+  wellnessScore: integer("wellness_score"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertMusicFavoriteSchema = createInsertSchema(musicFavorites).omit({ id: true, createdAt: true });
+export const insertMusicHistorySchema  = createInsertSchema(musicHistory).omit({ id: true, playedAt: true });
+export const insertEmotionLogSchema    = createInsertSchema(emotionLogs).omit({ id: true, createdAt: true });
+
+export type MusicFavorite       = typeof musicFavorites.$inferSelect;
+export type InsertMusicFavorite = z.infer<typeof insertMusicFavoriteSchema>;
+export type MusicHistory        = typeof musicHistory.$inferSelect;
+export type InsertMusicHistory  = z.infer<typeof insertMusicHistorySchema>;
+export type EmotionLog          = typeof emotionLogs.$inferSelect;
+export type InsertEmotionLog    = z.infer<typeof insertEmotionLogSchema>;
+
 // Session storage table for authentication
 export const sessions = pgTable("sessions", {
   sid: varchar("sid").primaryKey(),

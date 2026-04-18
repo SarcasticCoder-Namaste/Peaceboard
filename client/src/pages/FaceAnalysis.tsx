@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "wouter";
+import { useAuth } from "@/hooks/useAuth";
+import { apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -210,6 +212,8 @@ export default function FaceAnalysis() {
   const [breathCount, setBreathCount] = useState(0);
   const [sessionStats, setSessionStats] = useState<SessionStats>({ totalFrames: 0, emotionCounts: {}, sessionStart: Date.now() });
   const [emotionHistory, setEmotionHistory] = useState<EmotionEntry[]>([]);
+  const { user } = useAuth();
+  const lastEmotionLogRef = useRef<{ at: number; emotion: string }>({ at: 0, emotion: "" });
   const [now, setNow] = useState(Date.now());
   const [snapshotDataUrl, setSnapshotDataUrl] = useState<string | null>(null);
 
@@ -357,6 +361,21 @@ export default function FaceAnalysis() {
           ...prev, totalFrames: prev.totalFrames + 1,
           emotionCounts: { ...prev.emotionCounts, [dominantEmotion]: (prev.emotionCounts[dominantEmotion] || 0) + 1 },
         }));
+
+        // Persist to backend (throttled: every 3 s OR when emotion changes; only for real users)
+        const nowMs = Date.now();
+        const last  = lastEmotionLogRef.current;
+        const changed = last.emotion !== dominantEmotion;
+        if (user && !user.id.startsWith("guest_") && (changed || nowMs - last.at > 3000)) {
+          lastEmotionLogRef.current = { at: nowMs, emotion: dominantEmotion };
+          const wellness = Math.round(EMOTION_META[dominantEmotion]?.wellnessScore ?? 70);
+          apiRequest("POST", "/api/emotions", {
+            userId: user.id,
+            emotion: dominantEmotion,
+            confidence: Math.round(dominantScore * 100),
+            wellnessScore: wellness,
+          }).catch(() => {});
+        }
 
         drawDetections(ctx, resized, dominantEmotion, displaySize);
       } else { setFaceDetected(false); }

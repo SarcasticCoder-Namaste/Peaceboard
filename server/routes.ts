@@ -3,7 +3,13 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
 import { chatWithAI, generateGameFeedback } from "./openai";
-import { insertUserProgressSchema, insertChatConversationSchema } from "@shared/schema";
+import {
+  insertUserProgressSchema,
+  insertChatConversationSchema,
+  insertMusicFavoriteSchema,
+  insertMusicHistorySchema,
+  insertEmotionLogSchema,
+} from "@shared/schema";
 import { AuthService } from "./auth";
 import { authenticate, requireSchoolAdmin, requireTeacher, requireStudent, authRateLimit } from "./middleware";
 
@@ -371,6 +377,96 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error processing chat:", error);
       res.status(500).json({ message: "Failed to process chat message" });
+    }
+  });
+
+  // ─── Music favorites ──────────────────────────────────────────
+  app.get("/api/music/favorites/:userId", async (req, res) => {
+    try {
+      const favs = await storage.getMusicFavorites(req.params.userId);
+      res.json(favs);
+    } catch (error) {
+      console.error("Error fetching favorites:", error);
+      res.status(500).json({ message: "Failed to fetch favorites" });
+    }
+  });
+
+  app.post("/api/music/favorites", async (req, res) => {
+    try {
+      const data = insertMusicFavoriteSchema.parse({
+        userId: String(req.body.userId),
+        trackId: String(req.body.trackId),
+      });
+      const fav = await storage.addMusicFavorite(data);
+      res.json(fav);
+    } catch (error) {
+      console.error("Error adding favorite:", error);
+      res.status(400).json({ message: "Failed to add favorite" });
+    }
+  });
+
+  app.delete("/api/music/favorites/:userId/:trackId", async (req, res) => {
+    try {
+      await storage.removeMusicFavorite(req.params.userId, req.params.trackId);
+      res.json({ ok: true });
+    } catch (error) {
+      console.error("Error removing favorite:", error);
+      res.status(500).json({ message: "Failed to remove favorite" });
+    }
+  });
+
+  // ─── Music history ────────────────────────────────────────────
+  app.get("/api/music/history/:userId", async (req, res) => {
+    try {
+      const limit = req.query.limit ? Math.min(100, Number(req.query.limit)) : 20;
+      const history = await storage.getMusicHistory(req.params.userId, limit);
+      res.json(history);
+    } catch (error) {
+      console.error("Error fetching history:", error);
+      res.status(500).json({ message: "Failed to fetch history" });
+    }
+  });
+
+  app.post("/api/music/history", async (req, res) => {
+    try {
+      const data = insertMusicHistorySchema.parse({
+        userId: String(req.body.userId),
+        trackId: String(req.body.trackId),
+        trackTitle: req.body.trackTitle ? String(req.body.trackTitle) : null,
+      });
+      const entry = await storage.addMusicHistory(data);
+      res.json(entry);
+    } catch (error) {
+      console.error("Error adding history:", error);
+      res.status(400).json({ message: "Failed to add history" });
+    }
+  });
+
+  // ─── Emotion logs ─────────────────────────────────────────────
+  app.get("/api/emotions/:userId", async (req, res) => {
+    try {
+      const limit = req.query.limit ? Math.min(200, Number(req.query.limit)) : 50;
+      const logs = await storage.getEmotionLogs(req.params.userId, limit);
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching emotion logs:", error);
+      res.status(500).json({ message: "Failed to fetch emotion logs" });
+    }
+  });
+
+  app.post("/api/emotions", async (req, res) => {
+    try {
+      const data = insertEmotionLogSchema.parse({
+        userId: String(req.body.userId),
+        emotion: String(req.body.emotion),
+        confidence: req.body.confidence != null ? Math.round(Number(req.body.confidence)) : null,
+        wellnessScore: req.body.wellnessScore != null ? Math.round(Number(req.body.wellnessScore)) : null,
+      });
+      const log = await storage.addEmotionLog(data);
+      res.json(log);
+    } catch (error) {
+      console.error("Error adding emotion log:", error);
+      res.status(400).json({ message: "Failed to add emotion log" });
     }
   });
 

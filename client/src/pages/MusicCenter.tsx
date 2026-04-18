@@ -1,9 +1,11 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import MusicPlayer from "@/components/music/MusicPlayer";
 import { Music, Heart, Leaf, Brain, Sparkles, Clock, Timer, Moon, Sun, Flame, Play } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { apiRequest } from "@/lib/queryClient";
 
 // ─── All tracks use SoundHelix CDN — proven reliable, no CORS, no auth ─────
 const ALL_TRACKS = [
@@ -229,6 +231,7 @@ function SleepTimer() {
 
 // ─── Main Page ───────────────────────────────────────────────────────────────
 export default function MusicCenter() {
+  const { user } = useAuth();
   const [currentTrack, setCurrentTrack]     = useState<typeof ALL_TRACKS[0]>(ALL_TRACKS[0]);
   const [catFilter,    setCatFilter]         = useState("all");
   const [moodFilter,   setMoodFilter]        = useState("all");
@@ -239,6 +242,34 @@ export default function MusicCenter() {
     try { return JSON.parse(localStorage.getItem("pb-favs") || "[]"); } catch { return []; }
   });
 
+  // Sync favorites + history from backend on login (real users only)
+  useEffect(() => {
+    if (!user || user.id.startsWith("guest_")) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const favRes = await fetch(`/api/music/favorites/${encodeURIComponent(user.id)}`);
+        if (favRes.ok && !cancelled) {
+          const rows: { trackId: string }[] = await favRes.json();
+          const ids = rows.map(r => Number(r.trackId)).filter(n => !Number.isNaN(n));
+          if (ids.length) {
+            setFavorites(ids);
+            localStorage.setItem("pb-favs", JSON.stringify(ids));
+          }
+        }
+        const histRes = await fetch(`/api/music/history/${encodeURIComponent(user.id)}?limit=6`);
+        if (histRes.ok && !cancelled) {
+          const rows: { trackId: string }[] = await histRes.json();
+          const tracks = rows
+            .map(r => ALL_TRACKS.find(t => String(t.id) === String(r.trackId)))
+            .filter((t): t is typeof ALL_TRACKS[0] => !!t);
+          if (tracks.length) setRecentlyPlayed(tracks);
+        }
+      } catch { /* network errors are non-fatal */ }
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id]);
+
   const saveFavs = useCallback((ids: number[]) => {
     setFavorites(ids);
     localStorage.setItem("pb-favs", JSON.stringify(ids));
@@ -247,10 +278,29 @@ export default function MusicCenter() {
   const selectTrack = (track: typeof ALL_TRACKS[0]) => {
     setCurrentTrack(track);
     setRecentlyPlayed(p => [track, ...p.filter(t => t.id !== track.id)].slice(0, 6));
+    // Persist to backend (real users only); failures are silent
+    if (user && !user.id.startsWith("guest_")) {
+      apiRequest("POST", "/api/music/history", {
+        userId: user.id,
+        trackId: String(track.id),
+        trackTitle: track.title,
+      }).catch(() => {});
+    }
   };
 
-  const toggleFav = (id: number) =>
-    saveFavs(favorites.includes(id) ? favorites.filter(x => x !== id) : [...favorites, id]);
+  const toggleFav = (id: number) => {
+    const has = favorites.includes(id);
+    const next = has ? favorites.filter(x => x !== id) : [...favorites, id];
+    saveFavs(next);
+    // Mirror to backend (real users only)
+    if (user && !user.id.startsWith("guest_")) {
+      if (has) {
+        fetch(`/api/music/favorites/${encodeURIComponent(user.id)}/${id}`, { method: "DELETE" }).catch(() => {});
+      } else {
+        apiRequest("POST", "/api/music/favorites", { userId: user.id, trackId: String(id) }).catch(() => {});
+      }
+    }
+  };
 
   const filtered = ALL_TRACKS.filter(t => {
     if (showFavs && !favorites.includes(t.id)) return false;
