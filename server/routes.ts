@@ -481,6 +481,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ─── Admin routes ─────────────────────────────────────────────
+  // All admin endpoints require an authenticated teacher or school_admin
+  app.use("/api/admin", authenticate, requireTeacher);
+
+  app.get("/api/admin/overview", async (_req, res) => {
+    try {
+      res.json(await storage.getAdminOverview());
+    } catch (error) {
+      console.error("Error fetching admin overview:", error);
+      res.status(500).json({ message: "Failed to fetch admin overview" });
+    }
+  });
+
+  app.get("/api/admin/students", async (_req, res) => {
+    try {
+      res.json(await storage.getStudentsWithStats());
+    } catch (error) {
+      console.error("Error fetching students:", error);
+      res.status(500).json({ message: "Failed to fetch students" });
+    }
+  });
+
+  app.get("/api/admin/activity", async (req, res) => {
+    try {
+      const limit = req.query.limit ? Number(req.query.limit) : 30;
+      res.json(await storage.getRecentActivity(limit));
+    } catch (error) {
+      console.error("Error fetching activity:", error);
+      res.status(500).json({ message: "Failed to fetch activity" });
+    }
+  });
+
+  app.get("/api/admin/wellness", async (_req, res) => {
+    try {
+      res.json(await storage.getWellnessSummary());
+    } catch (error) {
+      console.error("Error fetching wellness summary:", error);
+      res.status(500).json({ message: "Failed to fetch wellness summary" });
+    }
+  });
+
+  app.patch("/api/admin/users/:id", async (req, res) => {
+    try {
+      const { isActive, userType } = req.body || {};
+      let updated;
+      if (typeof isActive === "boolean") {
+        updated = await storage.setUserActive(req.params.id, isActive);
+      }
+      if (typeof userType === "string" && ["student", "teacher", "school_admin"].includes(userType)) {
+        updated = await storage.setUserType(req.params.id, userType);
+      }
+      if (!updated) return res.status(400).json({ message: "Nothing to update" });
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating user:", error);
+      res.status(500).json({ message: "Failed to update user" });
+    }
+  });
+
+  app.delete("/api/admin/users/:id", async (req, res) => {
+    try {
+      await storage.deleteUserCascade(req.params.id);
+      res.json({ ok: true });
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      res.status(500).json({ message: "Failed to delete user" });
+    }
+  });
+
+  app.delete("/api/admin/games/:id", async (req, res) => {
+    try {
+      const result = await storage.deleteGameSafe(Number(req.params.id));
+      if (!result.deleted) return res.status(409).json(result);
+      res.json(result);
+    } catch (error) {
+      console.error("Error deleting game:", error);
+      res.status(500).json({ message: "Failed to delete game" });
+    }
+  });
+
   // Initialize sample data if needed
   app.post("/api/init-data", async (req, res) => {
     try {

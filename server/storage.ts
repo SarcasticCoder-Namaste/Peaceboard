@@ -31,7 +31,7 @@ import {
   type InsertEmotionLog,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, sql, and, gte, count } from "drizzle-orm";
+import { eq, desc, sql, and, gte, count, ne, or, inArray } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
@@ -88,7 +88,57 @@ export interface IStorage {
     avgSessionTime: number;
     achievementsEarned: number;
   }>;
+
+  // Admin operations
+  getAdminOverview(): Promise<AdminOverview>;
+  getStudentsWithStats(): Promise<StudentWithStats[]>;
+  getRecentActivity(limit?: number): Promise<ActivityEntry[]>;
+  getWellnessSummary(): Promise<WellnessSummary>;
+  setUserActive(userId: string, isActive: boolean): Promise<User>;
+  setUserType(userId: string, userType: string): Promise<User>;
+  deleteUserCascade(userId: string): Promise<void>;
+  deleteGameSafe(gameId: number): Promise<{ deleted: boolean; reason?: string }>;
 }
+
+export type AdminOverview = {
+  totalStudents: number;
+  activeStudents: number;
+  totalGamesCompleted: number;
+  totalAchievementsEarned: number;
+  totalMusicPlays: number;
+  totalEmotionChecks: number;
+  avgWellness: number;
+  weeklyActivity: Array<{ day: string; games: number; music: number; checks: number }>;
+  categoryBreakdown: Array<{ category: string; sessions: number; percentage: number }>;
+};
+
+export type StudentWithStats = User & {
+  totalPoints: number;
+  gamesCompleted: number;
+  lastActive: Date | null;
+  avgWellness: number | null;
+};
+
+export type ActivityEntry = {
+  type: "game" | "music" | "emotion";
+  userId: string;
+  userName: string;
+  detail: string;
+  meta?: string;
+  at: Date;
+};
+
+export type WellnessSummary = {
+  moodCounts: Array<{ emotion: string; count: number }>;
+  averageWellness: number;
+  totalChecks: number;
+  lowWellnessStudents: Array<{
+    userId: string;
+    name: string;
+    avgWellness: number;
+    lastChecked: Date;
+  }>;
+};
 
 export class DatabaseStorage implements IStorage {
   // User operations
@@ -355,6 +405,290 @@ export class DatabaseStorage implements IStorage {
       avgSessionTime: 24.5, // This would need more complex tracking
       achievementsEarned: achievementsResult[0]?.count || 0,
     };
+  }
+
+  // ─── Admin operations ─────────────────────────────────────────
+  async getAdminOverview(): Promise<AdminOverview> {
+    const studentFilter = or(eq(users.userType, "student"), eq(users.userType, "guest"));
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    const [totalStudents] = await db.select({ c: count() }).from(users).where(studentFilter!);
+    const [activeStudents] = await db.select({ c: count() }).from(users)
+      .where(and(studentFilter!, gte(users.updatedAt, sevenDaysAgo)));
+    const [gamesCompleted] = await db.select({ c: count() }).from(userProgress)
+      .where(eq(userProgress.completed, true));
+    const [achievementsEarned] = await db.select({ c: count() }).from(userAchievements);
+    const [musicPlays] = await db.select({ c: count() }).from(musicHistory);
+    const [emotionChecks] = await db.select({ c: count() }).from(emotionLogs);
+    const [wellnessAvg] = await db.select({
+      a: sql<number>`COALESCE(AVG(${emotionLogs.wellnessScore}), 0)`,
+    }).from(emotionLogs);
+
+    // Last-7-day buckets
+    const dayKey = (d: Date) => {
+      const dt = new Date(d);
+      dt.setHours(0, 0, 0, 0);
+      return dt.getTime();
+    };
+    const buckets = new Map<number, { day: string; games: number; music: number; checks: number }>();
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      d.setHours(0, 0, 0, 0);
+      buckets.set(d.getTime(), {
+        day: d.toLocaleDateString(undefined, { weekday: "short" }),
+        games: 0, music: 0, checks: 0,
+      });
+    }
+    const inc = (rows: Array<{ at: Date | null }>, field: "games" | "music" | "checks") => {
+      for (const r of rows) {
+        if (!r.at) continue;
+        const k = dayKey(r.at);
+        const b = buckets.get(k);
+        if (b) b[field]++;
+      }
+    };
+    const gameRows = await db.select({ at: userProgress.completedAt }).from(userProgress)
+      .where(and(eq(userProgress.completed, true), gte(userProgress.completedAt, sevenDaysAgo)));
+    const musicRows = await db.select({ at: musicHistory.playedAt }).from(musicHistory)
+      .where(gte(musicHistory.playedAt, sevenDaysAgo));
+    const checkRows = await db.select({ at: emotionLogs.createdAt }).from(emotionLogs)
+      .where(gte(emotionLogs.createdAt, sevenDaysAgo));
+    inc(gameRows, "games");
+    inc(musicRows, "music");
+    inc(checkRows, "checks");
+
+    // Category breakdown via join games -> userProgress
+    const catRows = await db.select({
+      category: games.category,
+      sessions: sql<number>`COUNT(${userProgress.id})`,
+    })
+      .from(games)
+      .leftJoin(userProgress, eq(userProgress.gameId, games.id))
+      .groupBy(games.category);
+    const totalSessions = catRows.reduce((s, r) => s + Number(r.sessions || 0), 0) || 1;
+    const categoryBreakdown = catRows
+      .map(r => ({
+        category: r.category,
+        sessions: Number(r.sessions || 0),
+        percentage: Math.round((Number(r.sessions || 0) / totalSessions) * 100),
+      }))
+      .sort((a, b) => b.sessions - a.sessions);
+
+    return {
+      totalStudents: Number(totalStudents?.c || 0),
+      activeStudents: Number(activeStudents?.c || 0),
+      totalGamesCompleted: Number(gamesCompleted?.c || 0),
+      totalAchievementsEarned: Number(achievementsEarned?.c || 0),
+      totalMusicPlays: Number(musicPlays?.c || 0),
+      totalEmotionChecks: Number(emotionChecks?.c || 0),
+      avgWellness: Math.round(Number(wellnessAvg?.a || 0)),
+      weeklyActivity: Array.from(buckets.values()),
+      categoryBreakdown,
+    };
+  }
+
+  async getStudentsWithStats(): Promise<StudentWithStats[]> {
+    const studentRows = await db.select().from(users)
+      .where(or(eq(users.userType, "student"), eq(users.userType, "guest"))!)
+      .orderBy(desc(users.updatedAt));
+
+    if (!studentRows.length) return [];
+    const ids = studentRows.map(s => s.id);
+
+    const progressAgg = await db.select({
+      userId: userProgress.userId,
+      points: sql<number>`COALESCE(SUM(${userProgress.pointsEarned}), 0)`,
+      games: sql<number>`COUNT(*) FILTER (WHERE ${userProgress.completed} = true)`,
+      lastAt: sql<Date | null>`MAX(${userProgress.completedAt})`,
+    }).from(userProgress)
+      .where(inArray(userProgress.userId, ids))
+      .groupBy(userProgress.userId);
+
+    const wellnessAgg = await db.select({
+      userId: emotionLogs.userId,
+      avg: sql<number>`COALESCE(AVG(${emotionLogs.wellnessScore}), 0)`,
+      lastAt: sql<Date | null>`MAX(${emotionLogs.createdAt})`,
+    }).from(emotionLogs)
+      .where(inArray(emotionLogs.userId, ids))
+      .groupBy(emotionLogs.userId);
+
+    const pMap = new Map(progressAgg.map(r => [r.userId, r]));
+    const wMap = new Map(wellnessAgg.map(r => [r.userId, r]));
+
+    return studentRows.map(s => {
+      const p = pMap.get(s.id);
+      const w = wMap.get(s.id);
+      const lastDates = [s.updatedAt, p?.lastAt ?? null, w?.lastAt ?? null]
+        .filter(Boolean)
+        .map(d => new Date(d as Date).getTime());
+      const lastActive = lastDates.length ? new Date(Math.max(...lastDates)) : null;
+      return {
+        ...s,
+        totalPoints: Number(p?.points || 0),
+        gamesCompleted: Number(p?.games || 0),
+        lastActive,
+        avgWellness: w ? Math.round(Number(w.avg)) : null,
+      };
+    });
+  }
+
+  async getRecentActivity(limit = 30): Promise<ActivityEntry[]> {
+    const cap = Math.min(100, Math.max(5, limit));
+
+    const gameRows = await db.select({
+      userId: userProgress.userId,
+      first: users.firstName,
+      email: users.email,
+      gameTitle: games.title,
+      score: userProgress.score,
+      stars: userProgress.stars,
+      at: userProgress.completedAt,
+    }).from(userProgress)
+      .innerJoin(games, eq(games.id, userProgress.gameId))
+      .leftJoin(users, eq(users.id, userProgress.userId))
+      .where(eq(userProgress.completed, true))
+      .orderBy(desc(userProgress.completedAt))
+      .limit(cap);
+
+    const musicRows = await db.select({
+      userId: musicHistory.userId,
+      first: users.firstName,
+      email: users.email,
+      track: musicHistory.trackTitle,
+      at: musicHistory.playedAt,
+    }).from(musicHistory)
+      .leftJoin(users, eq(users.id, musicHistory.userId))
+      .orderBy(desc(musicHistory.playedAt))
+      .limit(cap);
+
+    const emoRows = await db.select({
+      userId: emotionLogs.userId,
+      first: users.firstName,
+      email: users.email,
+      emotion: emotionLogs.emotion,
+      wellness: emotionLogs.wellnessScore,
+      at: emotionLogs.createdAt,
+    }).from(emotionLogs)
+      .leftJoin(users, eq(users.id, emotionLogs.userId))
+      .orderBy(desc(emotionLogs.createdAt))
+      .limit(cap);
+
+    const nameOf = (first: string | null, email: string | null, id: string) =>
+      first || (email ? email.split("@")[0] : null) || `User ${id.slice(-5)}`;
+
+    const all: ActivityEntry[] = [
+      ...gameRows.filter(r => r.at).map(r => ({
+        type: "game" as const,
+        userId: r.userId,
+        userName: nameOf(r.first, r.email, r.userId),
+        detail: `Completed "${r.gameTitle}"`,
+        meta: `${r.score ?? 0} pts · ${r.stars ?? 0}★`,
+        at: r.at as Date,
+      })),
+      ...musicRows.filter(r => r.at).map(r => ({
+        type: "music" as const,
+        userId: r.userId,
+        userName: nameOf(r.first, r.email, r.userId),
+        detail: `Played "${r.track || "track"}"`,
+        at: r.at as Date,
+      })),
+      ...emoRows.filter(r => r.at).map(r => ({
+        type: "emotion" as const,
+        userId: r.userId,
+        userName: nameOf(r.first, r.email, r.userId),
+        detail: `Wellness check: ${r.emotion}`,
+        meta: r.wellness != null ? `${r.wellness}%` : undefined,
+        at: r.at as Date,
+      })),
+    ];
+
+    return all.sort((a, b) => b.at.getTime() - a.at.getTime()).slice(0, cap);
+  }
+
+  async getWellnessSummary(): Promise<WellnessSummary> {
+    const moodRows = await db.select({
+      emotion: emotionLogs.emotion,
+      c: count(),
+    }).from(emotionLogs).groupBy(emotionLogs.emotion);
+
+    const [avgRow] = await db.select({
+      a: sql<number>`COALESCE(AVG(${emotionLogs.wellnessScore}), 0)`,
+      t: count(),
+    }).from(emotionLogs);
+
+    const perUser = await db.select({
+      userId: emotionLogs.userId,
+      avg: sql<number>`COALESCE(AVG(${emotionLogs.wellnessScore}), 0)`,
+      lastAt: sql<Date | null>`MAX(${emotionLogs.createdAt})`,
+      cnt: count(),
+    }).from(emotionLogs).groupBy(emotionLogs.userId);
+
+    const lowOnes = perUser.filter(p => p.cnt >= 2 && Number(p.avg) < 60);
+    const ids = lowOnes.map(p => p.userId);
+    const userMap = new Map<string, User>();
+    if (ids.length) {
+      const us = await db.select().from(users).where(inArray(users.id, ids));
+      for (const u of us) userMap.set(u.id, u);
+    }
+    const lowWellnessStudents = lowOnes
+      .map(p => {
+        const u = userMap.get(p.userId);
+        const name = u?.firstName || u?.email?.split("@")[0] || `User ${p.userId.slice(-5)}`;
+        return {
+          userId: p.userId,
+          name,
+          avgWellness: Math.round(Number(p.avg)),
+          lastChecked: p.lastAt as Date,
+        };
+      })
+      .sort((a, b) => a.avgWellness - b.avgWellness)
+      .slice(0, 10);
+
+    return {
+      moodCounts: moodRows.map(r => ({ emotion: r.emotion, count: Number(r.c) })),
+      averageWellness: Math.round(Number(avgRow?.a || 0)),
+      totalChecks: Number(avgRow?.t || 0),
+      lowWellnessStudents,
+    };
+  }
+
+  async setUserActive(userId: string, isActive: boolean): Promise<User> {
+    const [u] = await db.update(users)
+      .set({ isActive, updatedAt: new Date() })
+      .where(eq(users.id, userId))
+      .returning();
+    return u;
+  }
+
+  async setUserType(userId: string, userType: string): Promise<User> {
+    const [u] = await db.update(users)
+      .set({ userType, updatedAt: new Date() })
+      .where(eq(users.id, userId))
+      .returning();
+    return u;
+  }
+
+  async deleteUserCascade(userId: string): Promise<void> {
+    await db.transaction(async (tx) => {
+      await tx.delete(userProgress).where(eq(userProgress.userId, userId));
+      await tx.delete(userAchievements).where(eq(userAchievements.userId, userId));
+      await tx.delete(chatConversations).where(eq(chatConversations.userId, userId));
+      await tx.delete(musicFavorites).where(eq(musicFavorites.userId, userId));
+      await tx.delete(musicHistory).where(eq(musicHistory.userId, userId));
+      await tx.delete(emotionLogs).where(eq(emotionLogs.userId, userId));
+      await tx.delete(users).where(eq(users.id, userId));
+    });
+  }
+
+  async deleteGameSafe(gameId: number): Promise<{ deleted: boolean; reason?: string }> {
+    const [hasProgress] = await db.select({ c: count() }).from(userProgress)
+      .where(eq(userProgress.gameId, gameId));
+    if (Number(hasProgress?.c || 0) > 0) {
+      return { deleted: false, reason: "Game has student progress and cannot be removed." };
+    }
+    await db.delete(games).where(eq(games.id, gameId));
+    return { deleted: true };
   }
 }
 

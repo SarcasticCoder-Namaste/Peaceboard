@@ -23,7 +23,7 @@ export default function Navigation() {
     { href: "/leaderboard", label: "Leaderboard", icon: "🏆" },
     { href: "/check-emotion", label: "Check Your Emotion", icon: "🧠" },
     ...(user ? [{ href: "/profile", label: "Profile", icon: "👤" }] : []),
-    ...(isAdmin ? [{ href: "/analytics", label: "Analytics", icon: "📊" }] : []),
+    ...(isAdmin ? [{ href: "/admin", label: "Admin", icon: "🛡️" }] : []),
   ];
 
   const NavLink = ({ href, label, icon, mobile = false }: { href: string; label: string; icon: string; mobile?: boolean }) => {
