@@ -12,6 +12,7 @@ import PageTransition from "@/components/PageTransition";
 import AnimatedBackground from "@/components/AnimatedBackground";
 import BackToTop from "@/components/BackToTop";
 import CommandPalette from "@/components/CommandPalette";
+import KeyboardShortcuts from "@/components/KeyboardShortcuts";
 
 // Pages
 import About from "@/pages/About";
@@ -65,6 +66,7 @@ function App() {
               <FloatingChatbot />
               <BackToTop />
               <CommandPalette />
+              <KeyboardShortcuts />
               <Toaster />
             </div>
           </ErrorBoundary>

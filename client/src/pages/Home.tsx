@@ -12,6 +12,8 @@ import {
   Target, Heart, TrendingUp, Flame, Sparkles, CheckCircle2, User as UserIcon
 } from "lucide-react";
 import Confetti from "@/components/Confetti";
+import CountUp from "@/components/CountUp";
+import { Quote, Shuffle } from "lucide-react";
 
 // ─── Daily challenges (rotates daily) ─────────────────────────────────────
 const CHALLENGES = [
@@ -28,6 +30,24 @@ function challengeKey(userId: string | undefined) { return `pb-ch-${userId || "a
 function todaysChallenge() {
   const day = Math.floor(Date.now() / 86_400_000);
   return CHALLENGES[day % CHALLENGES.length];
+}
+
+// ─── Mindful quotes (rotates daily, can be shuffled) ─────────────────────
+const QUOTES: { text: string; author: string }[] = [
+  { text: "Be kind whenever possible. It is always possible.", author: "Dalai Lama" },
+  { text: "No act of kindness, no matter how small, is ever wasted.", author: "Aesop" },
+  { text: "Three things in human life are important: to be kind, to be kind, and to be kind.", author: "Henry James" },
+  { text: "Wherever there is a human being, there is an opportunity for a kindness.", author: "Seneca" },
+  { text: "The best way to find yourself is to lose yourself in the service of others.", author: "Mahatma Gandhi" },
+  { text: "Peace begins with a smile.", author: "Mother Teresa" },
+  { text: "Feelings come and go like clouds in a windy sky. Conscious breathing is my anchor.", author: "Thich Nhat Hanh" },
+  { text: "We rise by lifting others.", author: "Robert Ingersoll" },
+  { text: "Empathy is seeing with the eyes of another, listening with the ears of another.", author: "Alfred Adler" },
+  { text: "You can’t go back and change the beginning, but you can start where you are and change the ending.", author: "C.S. Lewis" },
+];
+function todaysQuoteIndex() {
+  const day = Math.floor(Date.now() / 86_400_000);
+  return day % QUOTES.length;
 }
 
 export default function Home() {
@@ -121,6 +141,17 @@ export default function Home() {
     setConfettiTrigger((n) => n + 1);
   };
 
+  // Mindful quote of the day (with shuffle)
+  const [quoteIdx, setQuoteIdx] = useState<number>(() => todaysQuoteIndex());
+  const shuffleQuote = () => {
+    setQuoteIdx((i) => {
+      let n = i;
+      while (n === i) n = Math.floor(Math.random() * QUOTES.length);
+      return n;
+    });
+  };
+  const quote = QUOTES[quoteIdx];
+
   const quickActions = [
     { title: "Play Games",       description: "Continue your empathy journey", icon: Gamepad2,  color: "from-blue-500 to-blue-600",     action: () => setLocation("/games") },
     { title: "Listen to Music",  description: "Find peace and mindfulness",    icon: Music,     color: "from-emerald-500 to-emerald-600", action: () => setLocation("/music") },
@@ -153,10 +184,10 @@ export default function Home() {
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }}
           className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"
         >
-          <StatCard icon={<Gamepad2 className="w-5 h-5" />} value={stats.gamesCompleted} label="Games Completed" tint="from-blue-500 to-blue-600" />
-          <StatCard icon={<Sparkles className="w-5 h-5" />} value={stats.totalPoints} label="Total Points"     tint="from-emerald-500 to-emerald-600" />
-          <StatCard icon={<Trophy className="w-5 h-5" />}   value={stats.rank ? `#${stats.rank}` : "—"} label="Global Rank" tint="from-amber-500 to-orange-500" />
-          <StatCard icon={<Flame className="w-5 h-5" />}    value={stats.currentStreak} label="Day Streak"     tint="from-rose-500 to-pink-600" />
+          <StatCard icon={<Gamepad2 className="w-5 h-5" />} value={<CountUp value={stats.gamesCompleted} />} label="Games Completed" tint="from-blue-500 to-blue-600" />
+          <StatCard icon={<Sparkles className="w-5 h-5" />} value={<CountUp value={stats.totalPoints} />} label="Total Points"     tint="from-emerald-500 to-emerald-600" />
+          <StatCard icon={<Trophy className="w-5 h-5" />}   value={stats.rank ? <CountUp value={stats.rank} prefix="#" /> : "—"} label="Global Rank" tint="from-amber-500 to-orange-500" />
+          <StatCard icon={<Flame className="w-5 h-5" />}    value={<CountUp value={stats.currentStreak} />} label="Day Streak"     tint="from-rose-500 to-pink-600" />
         </motion.div>
 
         <div className="grid lg:grid-cols-3 gap-8">
@@ -226,6 +257,39 @@ export default function Home() {
 
           {/* Right column */}
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.5, delay: 0.3 }} className="space-y-6">
+            {/* Mindful Quote of the Day */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <span className="flex items-center space-x-2">
+                    <Quote className="w-5 h-5 text-violet-500" />
+                    <span>Mindful Quote</span>
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={shuffleQuote}
+                    aria-label="Shuffle quote"
+                    className="h-7 px-2 text-slate-500 hover:text-violet-600"
+                  >
+                    <Shuffle className="w-4 h-4" />
+                  </Button>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <motion.div
+                  key={quoteIdx}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.35 }}
+                  className="rounded-lg p-4 bg-gradient-to-br from-violet-50 to-indigo-50 dark:from-violet-900/20 dark:to-indigo-900/20 border border-violet-200 dark:border-violet-800"
+                >
+                  <p className="text-sm italic text-slate-700 dark:text-slate-200 leading-relaxed">"{quote.text}"</p>
+                  <p className="mt-2 text-xs text-slate-500 dark:text-slate-400 text-right">— {quote.author}</p>
+                </motion.div>
+              </CardContent>
+            </Card>
+
             {/* Daily Challenge */}
             <Card className={challengeDone ? "border-emerald-300 dark:border-emerald-700" : ""}>
               <CardHeader>
@@ -308,7 +372,7 @@ export default function Home() {
   );
 }
 
-function StatCard({ icon, value, label, tint }: { icon: React.ReactNode; value: number | string; label: string; tint: string }) {
+function StatCard({ icon, value, label, tint }: { icon: React.ReactNode; value: React.ReactNode; label: string; tint: string }) {
   return (
     <Card>
       <CardContent className="p-4">
