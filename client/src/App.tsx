@@ -17,6 +17,7 @@ import MusicCenter from "@/pages/MusicCenter";
 import Leaderboard from "@/pages/Leaderboard";
 import Analytics from "@/pages/Analytics";
 import FaceAnalysis from "@/pages/FaceAnalysis";
+import Profile from "@/pages/Profile";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -32,6 +33,7 @@ function Router() {
       <Route path="/analytics" component={Analytics} />
       <Route path="/check-emotion" component={FaceAnalysis} />
       <Route path="/face-analysis" component={FaceAnalysis} />
+      <Route path="/profile" component={Profile} />
       <Route component={NotFound} />
     </Switch>
   );

@@ -62,8 +62,12 @@ export default function MusicPlayer({
   const [hasError,    setHasError]    = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration,    setDuration]    = useState(0);
-  const [volume,      setVolume]      = useState(85);
-  const [isMuted,     setIsMuted]     = useState(false);
+  const [volume,      setVolume]      = useState<number>(() => {
+    try { const v = Number(localStorage.getItem("pb-vol")); return Number.isFinite(v) && v >= 0 && v <= 100 ? v : 85; } catch { return 85; }
+  });
+  const [isMuted,     setIsMuted]     = useState<boolean>(() => {
+    try { return localStorage.getItem("pb-muted") === "1"; } catch { return false; }
+  });
   const [isRepeat,    setIsRepeat]    = useState(false);
   const [isRepeatOne, setIsRepeatOne] = useState(false);
   const [isShuffle,   setIsShuffle]   = useState(false);
@@ -173,6 +177,10 @@ export default function MusicPlayer({
   // ─── Volume / playback speed ──────────────────────────────────
   useEffect(() => {
     if (audioRef.current) audioRef.current.volume = isMuted ? 0 : volume / 100;
+    try {
+      localStorage.setItem("pb-vol", String(volume));
+      localStorage.setItem("pb-muted", isMuted ? "1" : "0");
+    } catch {}
   }, [volume, isMuted]);
 
   useEffect(() => {

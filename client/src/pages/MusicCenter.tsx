@@ -232,7 +232,14 @@ function SleepTimer() {
 // ─── Main Page ───────────────────────────────────────────────────────────────
 export default function MusicCenter() {
   const { user } = useAuth();
-  const [currentTrack, setCurrentTrack]     = useState<typeof ALL_TRACKS[0]>(ALL_TRACKS[0]);
+  const [currentTrack, setCurrentTrack]     = useState<typeof ALL_TRACKS[0]>(() => {
+    try {
+      const saved = Number(localStorage.getItem("pb-last-track"));
+      const found = ALL_TRACKS.find(t => t.id === saved);
+      if (found) return found;
+    } catch {}
+    return ALL_TRACKS[0];
+  });
   const [catFilter,    setCatFilter]         = useState("all");
   const [moodFilter,   setMoodFilter]        = useState("all");
   const [showFavs,     setShowFavs]          = useState(false);
@@ -278,6 +285,7 @@ export default function MusicCenter() {
   const selectTrack = (track: typeof ALL_TRACKS[0]) => {
     setCurrentTrack(track);
     setRecentlyPlayed(p => [track, ...p.filter(t => t.id !== track.id)].slice(0, 6));
+    try { localStorage.setItem("pb-last-track", String(track.id)); } catch {}
     // Persist to backend (real users only); failures are silent
     if (user && !user.id.startsWith("guest_")) {
       apiRequest("POST", "/api/music/history", {
