@@ -65,37 +65,93 @@ function getFallbackResponse(message: string): string {
   return options[Math.floor(Math.random() * options.length)];
 }
 
-export async function chatWithAI(message: string): Promise<string> {
+// Per-persona voice instructions layered on top of the shared safety prompt.
+const PERSONA_PROMPTS: Record<string, string> = {
+  friend:
+    "You are 'Peace', warm and casual like a supportive older friend. Use short sentences, gentle humor, and tasteful emoji (1-2 max). Validate first, then ask one open question.",
+  mentor:
+    "You are 'Peace', a thoughtful mentor. Be calm and reflective. Offer one concrete framework or insight, give an example, and end with a reflective question. Use minimal emoji.",
+  coach:
+    "You are 'Peace', an upbeat coach. Be energetic and motivating. Celebrate effort, give 1-3 actionable steps as a short bulleted list, and end with an encouraging push. Use lively but not childish language.",
+  guide:
+    "You are 'Peace', a calm mindfulness guide. Speak slowly and softly. Offer a brief grounding/breathing technique tied to what the student shared, then a gentle invitation to reflect.",
+};
+
+const SAFETY_PROMPT = `You are an AI companion for PeaceBoard, an educational platform that helps students build empathy, kindness, and emotional intelligence.
+
+Always:
+- Be warm, non-judgmental, and age-appropriate (assume the user is a school-aged student unless they say otherwise).
+- Validate feelings before giving advice. Ask one focused follow-up question when helpful.
+- Keep replies tight: 2-5 short sentences OR a short bulleted list. Avoid lecturing.
+- Use plain language. Light markdown is fine (**bold**, bullet points).
+- Encourage healthy actions: talking to a trusted adult, taking breaks, breathing, journaling, kind acts.
+
+Never:
+- Give medical, legal, or diagnostic advice.
+- Pretend to be human or claim to have feelings/memories beyond this chat.
+- Shame, blame, or scold the user.
+- Encourage harmful, dangerous, illegal, or hateful behavior.
+
+Safety:
+- If the user mentions self-harm, suicide, abuse, or being in danger, respond with immediate care, take them seriously, encourage them to reach out to a trusted adult right now, and share that in the US they can call or text 988 (Suicide & Crisis Lifeline) and in an emergency call 911. Mention an equivalent local helpline if the user names another country. Never minimize.`;
+
+export interface ChatTurn {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export async function chatWithAI(
+  message: string,
+  history: ChatTurn[] = [],
+  personaId: string = "friend",
+): Promise<{ response: string; suggestions: string[] }> {
+  const personaPrompt = PERSONA_PROMPTS[personaId] || PERSONA_PROMPTS.friend;
+  const systemContent = `${SAFETY_PROMPT}\n\nVoice: ${personaPrompt}\n\nAfter your reply, also propose three short follow-up replies the student could click. Each should be under 6 words, in first person, and move the conversation forward kindly.\n\nReturn STRICT JSON with this shape (and nothing else):\n{"reply": "your message text here", "suggestions": ["...", "...", "..."]}`;
+
+  // Keep only the most recent turns to control token usage
+  const recent = history.slice(-10).map((t) => ({
+    role: t.role,
+    content: String(t.content || "").slice(0, 1500),
+  }));
+
   try {
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
-        {
-          role: "system",
-          content: `You are a compassionate AI assistant for PeaceBoard, an educational platform focused on empathy, kindness, and emotional intelligence. Your role is to:
-          
-          1. Provide emotional support and guidance to students
-          2. Help with empathy-building activities and scenarios
-          3. Offer mindfulness and wellness advice
-          4. Encourage positive behavior and kindness
-          5. Answer questions about conflict resolution and social skills
-          
-          Always respond with warmth, understanding, and age-appropriate language. Focus on positive reinforcement and constructive guidance. Keep responses concise but meaningful.`
-        },
-        {
-          role: "user",
-          content: message
-        }
+        { role: "system", content: systemContent },
+        ...recent,
+        { role: "user", content: message },
       ],
-      max_tokens: 500,
-      temperature: 0.7,
+      response_format: { type: "json_object" },
+      max_tokens: 600,
+      temperature: 0.75,
+      presence_penalty: 0.3,
     });
 
-    return response.choices[0].message.content || "I'm here to help you. Could you please rephrase your message?";
+    const raw = response.choices[0].message.content || "{}";
+    let parsed: any = {};
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      parsed = { reply: raw, suggestions: [] };
+    }
+    const reply: string =
+      typeof parsed.reply === "string" && parsed.reply.trim()
+        ? parsed.reply.trim()
+        : "I'm here with you. Could you tell me a little more about what's on your mind?";
+    const suggestions: string[] = Array.isArray(parsed.suggestions)
+      ? parsed.suggestions
+          .filter((s: any) => typeof s === "string" && s.trim())
+          .slice(0, 3)
+          .map((s: string) => s.trim().slice(0, 60))
+      : [];
+    return { response: reply, suggestions };
   } catch (error: any) {
     console.error("OpenAI API error:", error?.status || error);
-    // Use intelligent fallback responses when AI is unavailable
-    return getFallbackResponse(message);
+    return {
+      response: getFallbackResponse(message),
+      suggestions: ["Tell me more", "I need a different idea", "Help me feel calmer"],
+    };
   }
 }
 

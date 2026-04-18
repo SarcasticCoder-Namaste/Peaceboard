@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Bot, X, Send, Mic, MicOff, Settings, Trash2, Download,
   ChevronDown, Sparkles, Heart, BookOpen, Smile, RefreshCw,
-  Search, Volume2, VolumeX, Sun, Moon, MessageSquare
+  Search, Volume2, VolumeX, Sun, Moon, MessageSquare, Copy, Check
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -23,7 +23,11 @@ interface Message {
   timestamp: Date;
   reactions?: string[];
   mood?: string;
+  suggestions?: string[];
 }
+
+const STORAGE_KEY = "peaceboard_chat_v2";
+const PREFS_KEY = "peaceboard_chat_prefs_v2";
 
 interface Persona {
   id: string; name: string; emoji: string; desc: string;
@@ -85,44 +89,92 @@ function TypingDots() {
   );
 }
 
+// Safely render a tiny markdown subset (**bold**, *italic*, bullet lines).
+// Escapes all HTML first to prevent XSS from model output (or persisted history).
+function escapeHtml(s: string) {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 function renderText(text: string) {
-  // Basic markdown: **bold**, *italic*, bullet points
   return text.split("\n").map((line, i) => {
-    let el: any = line;
-    el = el.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
-    el = el.replace(/\*(.+?)\*/g, "<em>$1</em>");
     const isBullet = line.trim().startsWith("- ") || line.trim().startsWith("• ");
+    const stripped = line.replace(/^[-•]\s/, "");
+    const safe = escapeHtml(stripped)
+      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+      .replace(/\*(.+?)\*/g, "<em>$1</em>");
     return (
-      <p key={i} className={`text-sm leading-relaxed ${isBullet ? "pl-3 before:content-['•'] before:mr-1.5" : ""} ${i > 0 ? "mt-1" : ""}`}
-        dangerouslySetInnerHTML={{ __html: el.replace(/^[-•]\s/, "") }} />
+      <p
+        key={i}
+        className={`text-sm leading-relaxed ${isBullet ? "pl-3 before:content-['•'] before:mr-1.5" : ""} ${i > 0 ? "mt-1" : ""}`}
+        dangerouslySetInnerHTML={{ __html: safe }}
+      />
     );
   });
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function FloatingChatbot() {
+  // Load saved preferences once
+  const savedPrefs = (() => {
+    try { return JSON.parse(localStorage.getItem(PREFS_KEY) || "{}"); } catch { return {}; }
+  })();
+
   const [isOpen, setIsOpen] = useState(false);
   const [tab, setTab] = useState<"chat" | "settings">("chat");
-  const [personaId, setPersonaId] = useState("friend");
-  const [themeId, setThemeId] = useState("light");
-  const [fontSize, setFontSize] = useState(14);
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [personaId, setPersonaId] = useState<string>(savedPrefs.personaId || "friend");
+  const [themeId, setThemeId] = useState<string>(savedPrefs.themeId || "light");
+  const [fontSize, setFontSize] = useState<number>(savedPrefs.fontSize || 14);
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(savedPrefs.soundEnabled ?? true);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
   const [inputMessage, setInputMessage] = useState("");
   const [isListening, setIsListening] = useState(false);
   const [showMoods, setShowMoods] = useState(true);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const persona = PERSONAS.find(p => p.id === personaId) || PERSONAS[0];
   const theme = THEMES.find(t => t.id === themeId) || THEMES[0];
 
-  const [messages, setMessages] = useState<Message[]>([{
-    id: "init", role: "assistant", content: persona.greeting, timestamp: new Date()
-  }]);
+  // Load conversation from localStorage (or seed with persona greeting)
+  const [messages, setMessages] = useState<Message[]>(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed: Message[] = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length) {
+          return parsed.map(m => ({ ...m, timestamp: new Date(m.timestamp) }));
+        }
+      }
+    } catch {}
+    return [{ id: "init", role: "assistant", content: persona.greeting, timestamp: new Date() }];
+  });
 
-  // Reset greeting when persona changes
+  // Persist conversation
   useEffect(() => {
-    setMessages([{ id: "init", role: "assistant", content: persona.greeting, timestamp: new Date() }]);
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(messages.slice(-60))); } catch {}
+  }, [messages]);
+
+  // Persist preferences
+  useEffect(() => {
+    try {
+      localStorage.setItem(PREFS_KEY, JSON.stringify({ personaId, themeId, fontSize, soundEnabled }));
+    } catch {}
+  }, [personaId, themeId, fontSize, soundEnabled]);
+
+  // Reset greeting when persona changes (only if conversation is empty / fresh)
+  useEffect(() => {
+    setMessages(prev => {
+      const onlyGreeting = prev.length <= 1;
+      if (onlyGreeting) {
+        return [{ id: "init", role: "assistant", content: persona.greeting, timestamp: new Date() }];
+      }
+      return prev;
+    });
   }, [personaId]);
 
   const { user } = useAuth();
@@ -162,12 +214,24 @@ export default function FloatingChatbot() {
   }, [soundEnabled]);
 
   const chatMutation = useMutation({
-    mutationFn: async (msg: string) => {
-      const res = await apiRequest("POST", "/api/chat", { userId: user?.id || null, message: msg });
+    mutationFn: async (payload: { msg: string; history: { role: string; content: string }[] }) => {
+      const res = await apiRequest("POST", "/api/chat", {
+        userId: user?.id || null,
+        message: payload.msg,
+        history: payload.history,
+        persona: personaId,
+      });
       return res.json();
     },
     onSuccess: (data) => {
-      const newMsg: Message = { id: Date.now().toString(), role: "assistant", content: data.response, timestamp: new Date() };
+      const suggestions = Array.isArray(data?.suggestions) ? data.suggestions.slice(0, 3) : [];
+      const newMsg: Message = {
+        id: Date.now().toString(),
+        role: "assistant",
+        content: data.response,
+        timestamp: new Date(),
+        suggestions,
+      };
       setMessages(prev => [...prev, newMsg]);
       playPop();
     },
@@ -175,13 +239,36 @@ export default function FloatingChatbot() {
   });
 
   const sendMessage = (text = inputMessage) => {
-    if (!text.trim()) return;
-    const userMsg: Message = { id: Date.now().toString(), role: "user", content: text.trim(), timestamp: new Date() };
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    // Build history from current messages (excluding the seed greeting "init") for context
+    const history = messages
+      .filter(m => m.id !== "init" || messages.length > 1)
+      .map(m => ({ role: m.role, content: m.content }));
+    const userMsg: Message = { id: Date.now().toString(), role: "user", content: trimmed, timestamp: new Date() };
     setMessages(prev => [...prev, userMsg]);
-    chatMutation.mutate(text.trim());
+    chatMutation.mutate({ msg: trimmed, history });
     setInputMessage("");
     setShowMoods(false);
   };
+
+  const copyMessage = async (id: string, content: string) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(c => (c === id ? null : c)), 1400);
+    } catch {
+      toast({ title: "Copy failed", variant: "destructive" });
+    }
+  };
+
+  // Auto-focus input when chat panel opens
+  useEffect(() => {
+    if (isOpen && tab === "chat") {
+      const t = setTimeout(() => inputRef.current?.focus(), 280);
+      return () => clearTimeout(t);
+    }
+  }, [isOpen, tab]);
 
   const addReaction = (msgId: string, emoji: string) => {
     setMessages(prev => prev.map(m => m.id === msgId
@@ -376,13 +463,34 @@ export default function FloatingChatbot() {
                                 </div>
                               )}
 
-                              {/* Reaction picker on hover */}
-                              <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-0.5 mt-0.5">
+                              {/* Reaction picker + copy on hover */}
+                              <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 mt-0.5">
                                 {REACTIONS.map(r => (
                                   <button key={r} onClick={() => addReaction(msg.id, r)}
                                     className="text-sm hover:scale-125 transition-transform p-0.5">{r}</button>
                                 ))}
+                                <button onClick={() => copyMessage(msg.id, msg.content)}
+                                  title="Copy"
+                                  className="ml-1 p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors">
+                                  {copiedId === msg.id ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+                                </button>
                               </div>
+
+                              {/* Smart follow-up suggestions */}
+                              {msg.role === "assistant" && msg.suggestions && msg.suggestions.length > 0 && (
+                                <div className="flex flex-wrap gap-1.5 mt-2">
+                                  {msg.suggestions.map((s, i) => (
+                                    <button
+                                      key={`${msg.id}-sug-${i}`}
+                                      onClick={() => sendMessage(s)}
+                                      disabled={chatMutation.isPending}
+                                      className={`text-xs px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-600 bg-white/70 dark:bg-slate-800/60 hover:bg-gradient-to-r hover:${persona.gradient} hover:text-white hover:border-transparent transition-all text-slate-700 dark:text-slate-200 disabled:opacity-50`}
+                                    >
+                                      {s}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
                             </div>
 
                             {msg.role === "user" && (

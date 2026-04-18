@@ -452,14 +452,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/chat", async (req, res) => {
     try {
-      const { userId, message } = req.body;
-      
+      const { userId, message, history, persona } = req.body;
+
       if (!message || typeof message !== "string" || !message.trim()) {
         return res.status(400).json({ message: "Message is required" });
       }
+      const safeHistory = Array.isArray(history)
+        ? history
+            .filter(
+              (t: any) =>
+                t && (t.role === "user" || t.role === "assistant") && typeof t.content === "string",
+            )
+            .slice(-10)
+            .map((t: any) => ({ role: t.role, content: t.content }))
+        : [];
+      const personaId = typeof persona === "string" ? persona : "friend";
 
       // Get AI response
-      const aiResponse = await chatWithAI(message);
+      const { response: aiResponse, suggestions } = await chatWithAI(
+        message.trim(),
+        safeHistory,
+        personaId,
+      );
       
       // Only save conversation for non-guest users who exist in the database
       const isGuest = !userId || String(userId).startsWith("guest_");
@@ -479,7 +493,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      res.json({ response: aiResponse });
+      res.json({ response: aiResponse, suggestions });
     } catch (error) {
       console.error("Error processing chat:", error);
       res.status(500).json({ message: "Failed to process chat message" });
