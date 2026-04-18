@@ -5,64 +5,25 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY_ENV_VAR || "default_key"
 });
 
-const FALLBACK_RESPONSES: Record<string, string[]> = {
-  greeting: [
-    "Hello there! 😊 I'm Peace, your kindness companion. How are you feeling today? I'm here to listen and help!",
-    "Hi! Welcome to PeaceBoard. Whether you want to talk about your feelings, learn about empathy, or just chat — I'm here for you!",
-    "Hey! Great to see you. 🌟 What's on your mind today? We can talk about anything — feelings, friendships, or how to be kind.",
-  ],
-  feelings: [
-    "It's completely okay to feel that way. All emotions are valid, and talking about them is a big step! 💙 Can you tell me more about what's happening?",
-    "Thank you for sharing that with me. Recognizing how you feel is actually a form of emotional intelligence — that's something to be proud of! How can I support you?",
-    "I hear you. Feelings can be really powerful sometimes. 🌈 Remember that tough feelings always pass, and reaching out for support (like you're doing now) is a great strategy!",
-  ],
-  kindness: [
-    "That's so wonderful that you're thinking about kindness! 💖 Even small acts — like smiling at someone or holding a door — can make a big difference in someone's day.",
-    "Kindness is like a superpower! 🌟 Research shows that being kind actually makes YOU feel better too. What kind act are you thinking about doing?",
-    "I love that! Spreading kindness is what PeaceBoard is all about. You could try writing a thank-you note, giving a genuine compliment, or helping someone who seems stressed.",
-  ],
-  conflict: [
-    "Conflicts happen to everyone — even the best of friends disagree sometimes. 🕊️ The key is to listen first, speak calmly, and look for a solution that works for both sides. What's going on?",
-    "Great question! When things get tense, try taking a deep breath first. Then use 'I feel...' statements instead of 'You always...' — it helps the other person hear you better.",
-    "Resolving conflicts peacefully is a real skill! 💪 Try to understand the other person's perspective first. What do you think they might be feeling about this situation?",
-  ],
-  empathy: [
-    "Empathy means stepping into someone else's shoes and really trying to understand their feelings. 👟 It's one of the most powerful skills we can develop! Is there a specific situation you're thinking about?",
-    "Being empathetic is amazing! When you're trying to understand someone else's feelings, ask yourself: 'How would I feel if I were in their position?' That simple question can change everything.",
-    "Empathy starts with listening — really listening, not just waiting for your turn to talk. 🌟 It means acknowledging someone's feelings even when you see things differently.",
-  ],
-  mindfulness: [
-    "Mindfulness is all about being present in this moment. 🧘 Try this: take a slow breath in for 4 counts, hold for 4, and breathe out for 6. How do you feel after that?",
-    "Great time to practice mindfulness! 🌱 Look around you — notice 5 things you can see, 4 you can touch, 3 you can hear, 2 you can smell, and 1 you can taste. It helps ground you!",
-    "Mindfulness can help so much with stress and overwhelming feelings. Even 2 minutes of focused breathing can reset your mood. Would you like to try a quick breathing exercise together?",
-  ],
-  default: [
-    "That's really interesting! Tell me more — I'm here to listen and support you on your kindness journey. 💙",
-    "I love that you're exploring these ideas! Thinking about empathy, kindness, and how we treat others is so important. What else is on your mind?",
-    "You're asking great questions! Every step you take to understand yourself and others better makes a positive difference. 🌟 How else can I help you today?",
-    "That's a thoughtful point. Growing emotionally is a journey, and I'm here to walk it with you. 💚 What would you like to explore next?",
-    "Thanks for sharing that with me! Remember, being kind to yourself is just as important as being kind to others. What's one thing you could do for yourself today?",
-  ],
-};
+// Honest, varied responses used ONLY when the live AI is unreachable
+// (e.g. the OpenAI API key is rate-limited or out of quota). They tell the user
+// what's going on instead of pretending to answer.
+const OFFLINE_REPLIES: string[] = [
+  "I'm having trouble reaching my AI brain right now (the connection timed out). Please try again in a moment — if it keeps happening, the OpenAI key may be rate-limited or out of quota.",
+  "Quick heads up: I can't reach the AI service at the moment, so I can't give you a real answer for that. Try again in a minute, and check the OpenAI account if it persists.",
+  "Sorry — the AI service didn't respond just now. Give it a few seconds and try again. (Common cause: OpenAI quota or rate limit.)",
+  "I couldn't get a response from the AI this time. Please retry — and if it keeps failing, your OpenAI API key may need more credits.",
+];
+
+const OFFLINE_GREETING =
+  "Hi! I'm Peace, a general-purpose AI assistant. Heads up: I'm currently in offline/fallback mode because I can't reach the AI service — please try again in a moment.";
 
 function getFallbackResponse(message: string): string {
-  const lower = message.toLowerCase();
-  let category = "default";
-  if (/\b(hi|hello|hey|howdy|good morning|good afternoon|good evening|what's up|sup)\b/.test(lower)) {
-    category = "greeting";
-  } else if (/\b(sad|happy|angry|upset|anxious|worried|scared|excited|lonely|depressed|frustrated|overwhelmed|stress)\b/.test(lower)) {
-    category = "feelings";
-  } else if (/\b(kind|kindness|nice|help|caring|generous|compassion|grateful|thankful|appreciate)\b/.test(lower)) {
-    category = "kindness";
-  } else if (/\b(fight|argument|conflict|disagree|bully|mean|unfair|problem|issue|trouble)\b/.test(lower)) {
-    category = "conflict";
-  } else if (/\b(empathy|understand|perspective|feeling|emotion|connect|relate)\b/.test(lower)) {
-    category = "empathy";
-  } else if (/\b(calm|relax|breathe|mindful|meditate|peaceful|quiet|stress)\b/.test(lower)) {
-    category = "mindfulness";
+  const lower = message.toLowerCase().trim();
+  if (/^(hi|hello|hey|howdy|yo|sup|good (morning|afternoon|evening))\b/.test(lower)) {
+    return OFFLINE_GREETING;
   }
-  const options = FALLBACK_RESPONSES[category];
-  return options[Math.floor(Math.random() * options.length)];
+  return OFFLINE_REPLIES[Math.floor(Math.random() * OFFLINE_REPLIES.length)];
 }
 
 // Per-persona voice instructions layered on top of the shared safety prompt.
