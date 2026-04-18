@@ -8,6 +8,8 @@ import Navigation from "@/components/Navigation";
 import FloatingChatbot from "@/components/FloatingChatbot";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import ScrollToTop from "@/components/ScrollToTop";
+import PageTransition from "@/components/PageTransition";
+import AnimatedBackground from "@/components/AnimatedBackground";
 
 // Pages
 import About from "@/pages/About";
@@ -50,10 +52,13 @@ function App() {
         <TooltipProvider>
           <ErrorBoundary>
             <ScrollToTop />
-            <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 text-slate-900 dark:text-slate-100 transition-all duration-300">
+            <div className="relative min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 text-slate-900 dark:text-slate-100 transition-all duration-300 overflow-x-hidden">
+              <AnimatedBackground />
               <Navigation />
               <main id="main-content" tabIndex={-1} className="outline-none">
-                <Router />
+                <PageTransition>
+                  <Router />
+                </PageTransition>
               </main>
               <FloatingChatbot />
               <Toaster />
