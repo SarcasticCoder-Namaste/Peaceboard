@@ -13,6 +13,8 @@ import AnimatedBackground from "@/components/AnimatedBackground";
 import BackToTop from "@/components/BackToTop";
 import CommandPalette from "@/components/CommandPalette";
 import KeyboardShortcuts from "@/components/KeyboardShortcuts";
+import OnboardingTour from "@/components/OnboardingTour";
+import { AchievementWatcher } from "@/hooks/useAchievementWatcher";
 
 // Pages
 import About from "@/pages/About";
@@ -67,6 +69,8 @@ function App() {
               <BackToTop />
               <CommandPalette />
               <KeyboardShortcuts />
+              <OnboardingTour />
+              <AchievementWatcher />
               <Toaster />
             </div>
           </ErrorBoundary>

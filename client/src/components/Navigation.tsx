@@ -7,12 +7,16 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Sun, Moon, Menu, User, LogOut, LogIn } from "lucide-react";
 import { motion } from "framer-motion";
 import logoImage from "@assets/generated_images/PeaceBoard_educational_platform_logo_a1809512.png";
+import { useAvatar } from "@/hooks/useAvatar";
+import AvatarPicker from "@/components/AvatarPicker";
 
 export default function Navigation() {
   const [location] = useLocation();
   const { theme, toggleTheme } = useTheme();
   const { user, logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
+  const [avatarPickerOpen, setAvatarPickerOpen] = useState(false);
+  const { avatar } = useAvatar(user?.id);
 
   const isAdmin = user?.userType === "school_admin" || user?.userType === "teacher";
 
@@ -86,9 +90,15 @@ export default function Navigation() {
           {/* Theme Toggle & User Actions */}
           <div className="flex items-center space-x-4">
             {user ? (
-              <div className="hidden md:flex items-center space-x-3 px-3 py-2 bg-slate-100 dark:bg-slate-800 rounded-lg">
-                <User className="w-4 h-4" />
-                <span className="text-sm font-medium">
+              <div className="hidden md:flex items-center space-x-2 px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
+                <button
+                  onClick={() => setAvatarPickerOpen(true)}
+                  title="Edit your avatar"
+                  className={`w-8 h-8 rounded-full bg-gradient-to-br ${avatar.color} text-white flex items-center justify-center text-base shadow-sm hover:scale-105 transition-transform`}
+                >
+                  {avatar.emoji}
+                </button>
+                <span className="text-sm font-medium pr-1">
                   {user.firstName || user.email || (user.userType ? `${user.userType.charAt(0).toUpperCase()}${user.userType.slice(1)}` : "User")}
                 </span>
                 <Button
@@ -140,7 +150,12 @@ export default function Navigation() {
                 <div className="flex flex-col space-y-4 mt-8">
                   {user && (
                     <div className="flex items-center space-x-3 px-4 py-3 bg-slate-100 dark:bg-slate-800 rounded-lg mb-4">
-                      <User className="w-5 h-5" />
+                      <button
+                        onClick={() => { setAvatarPickerOpen(true); setIsOpen(false); }}
+                        className={`w-10 h-10 rounded-full bg-gradient-to-br ${avatar.color} text-white flex items-center justify-center text-xl shadow-sm`}
+                      >
+                        {avatar.emoji}
+                      </button>
                       <div className="flex-1">
                         <p className="font-medium">
                           {user.firstName || user.email || (user.userType ? `${user.userType.charAt(0).toUpperCase()}${user.userType.slice(1)}` : "User")}
@@ -169,6 +184,7 @@ export default function Navigation() {
           </div>
         </div>
       </div>
+      <AvatarPicker open={avatarPickerOpen} onClose={() => setAvatarPickerOpen(false)} />
     </nav>
   );
 }
