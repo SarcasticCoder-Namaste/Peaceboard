@@ -12,8 +12,10 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Bot, X, Send, Mic, MicOff, Settings, Trash2, Download,
   ChevronDown, Sparkles, Heart, BookOpen, Smile, RefreshCw,
-  Search, Volume2, VolumeX, Sun, Moon, MessageSquare, Copy, Check
+  Search, Volume2, VolumeX, Sun, Moon, MessageSquare, Copy, Check,
+  ThumbsUp, ThumbsDown, Cpu, Cloud,
 } from "lucide-react";
+import { ask as brainAsk, teach as brainTeach, type Persona as BrainPersona } from "@/lib/peaceBrain";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Message {
@@ -24,6 +26,8 @@ interface Message {
   reactions?: string[];
   mood?: string;
   suggestions?: string[];
+  intent?: string;
+  feedback?: "up" | "down";
 }
 
 const STORAGE_KEY = "peaceboard_chat_v2";
@@ -130,6 +134,7 @@ export default function FloatingChatbot() {
   const [themeId, setThemeId] = useState<string>(savedPrefs.themeId || "light");
   const [fontSize, setFontSize] = useState<number>(savedPrefs.fontSize || 14);
   const [soundEnabled, setSoundEnabled] = useState<boolean>(savedPrefs.soundEnabled ?? true);
+  const [offlineBrain, setOfflineBrain] = useState<boolean>(savedPrefs.offlineBrain ?? true);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
   const [inputMessage, setInputMessage] = useState("");
@@ -162,9 +167,9 @@ export default function FloatingChatbot() {
   // Persist preferences
   useEffect(() => {
     try {
-      localStorage.setItem(PREFS_KEY, JSON.stringify({ personaId, themeId, fontSize, soundEnabled }));
+      localStorage.setItem(PREFS_KEY, JSON.stringify({ personaId, themeId, fontSize, soundEnabled, offlineBrain }));
     } catch {}
-  }, [personaId, themeId, fontSize, soundEnabled]);
+  }, [personaId, themeId, fontSize, soundEnabled, offlineBrain]);
 
   // Reset greeting when persona changes (only if conversation is empty / fresh)
   useEffect(() => {
@@ -241,15 +246,46 @@ export default function FloatingChatbot() {
   const sendMessage = (text = inputMessage) => {
     const trimmed = text.trim();
     if (!trimmed) return;
-    // Build history from current messages (excluding the seed greeting "init") for context
+    const userMsg: Message = { id: Date.now().toString(), role: "user", content: trimmed, timestamp: new Date() };
+    setMessages(prev => [...prev, userMsg]);
+    setInputMessage("");
+    setShowMoods(false);
+
+    if (offlineBrain) {
+      // Local "self-trained" brain — no network call.
+      const brainPersona = (["friend","mentor","coach","guide"].includes(personaId) ? personaId : "friend") as BrainPersona;
+      // Tiny artificial delay so the typing indicator feels natural.
+      setTimeout(() => {
+        const r = brainAsk(trimmed, { persona: brainPersona });
+        const newMsg: Message = {
+          id: Date.now().toString() + "-b",
+          role: "assistant",
+          content: r.text,
+          timestamp: new Date(),
+          suggestions: r.suggestions,
+          intent: r.intent,
+        };
+        setMessages(prev => [...prev, newMsg]);
+        playPop();
+      }, 350 + Math.min(900, trimmed.length * 12));
+      return;
+    }
+
+    // Cloud AI path
     const history = messages
       .filter(m => m.id !== "init" || messages.length > 1)
       .map(m => ({ role: m.role, content: m.content }));
-    const userMsg: Message = { id: Date.now().toString(), role: "user", content: trimmed, timestamp: new Date() };
-    setMessages(prev => [...prev, userMsg]);
     chatMutation.mutate({ msg: trimmed, history });
-    setInputMessage("");
-    setShowMoods(false);
+  };
+
+  const giveFeedback = (msgId: string, helpful: boolean) => {
+    setMessages(prev => prev.map(m => {
+      if (m.id !== msgId) return m;
+      // Toggle off if same vote tapped twice
+      const next: Message = { ...m, feedback: m.feedback === (helpful ? "up" : "down") ? undefined : (helpful ? "up" : "down") };
+      if (m.intent && next.feedback) brainTeach(m.intent, helpful);
+      return next;
+    }));
   };
 
   const copyMessage = async (id: string, content: string) => {
@@ -419,6 +455,29 @@ export default function FloatingChatbot() {
                       </div>
                     </section>
 
+                    {/* Brain mode */}
+                    <section>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-start gap-2">
+                          {offlineBrain ? <Cpu className="w-4 h-4 text-emerald-500 mt-0.5" /> : <Cloud className="w-4 h-4 text-blue-500 mt-0.5" />}
+                          <div>
+                            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wide">
+                              {offlineBrain ? "On-device Brain" : "Cloud AI"}
+                            </h4>
+                            <p className="text-xs text-slate-400 mt-0.5">
+                              {offlineBrain
+                                ? "Self-trained, runs in your browser. No API needed. Tap 👍/👎 on replies to train it."
+                                : "Uses the OpenAI API on the server. Needs internet + key."}
+                            </p>
+                          </div>
+                        </div>
+                        <button onClick={() => setOfflineBrain(s => !s)}
+                          className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${offlineBrain ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-600"}`}>
+                          <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${offlineBrain ? "translate-x-5" : ""}`} />
+                        </button>
+                      </div>
+                    </section>
+
                     {/* Actions */}
                     <section className="flex gap-2 pt-2">
                       <Button variant="outline" size="sm" onClick={exportChat} className="flex-1 gap-1.5">
@@ -464,7 +523,7 @@ export default function FloatingChatbot() {
                                 </div>
                               )}
 
-                              {/* Reaction picker + copy on hover */}
+                              {/* Reaction picker + copy + 👍/👎 on hover */}
                               <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 mt-0.5">
                                 {REACTIONS.map(r => (
                                   <button key={r} onClick={() => addReaction(msg.id, r)}
@@ -475,6 +534,24 @@ export default function FloatingChatbot() {
                                   className="ml-1 p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors">
                                   {copiedId === msg.id ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
                                 </button>
+                                {msg.role === "assistant" && msg.intent && (
+                                  <>
+                                    <button
+                                      onClick={() => giveFeedback(msg.id, true)}
+                                      title="Good response — train Peace"
+                                      className={`p-1 transition-colors ${msg.feedback === "up" ? "text-green-500" : "text-slate-400 hover:text-green-500"}`}
+                                    >
+                                      <ThumbsUp className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      onClick={() => giveFeedback(msg.id, false)}
+                                      title="Not helpful — train Peace"
+                                      className={`p-1 transition-colors ${msg.feedback === "down" ? "text-rose-500" : "text-slate-400 hover:text-rose-500"}`}
+                                    >
+                                      <ThumbsDown className="w-3.5 h-3.5" />
+                                    </button>
+                                  </>
+                                )}
                               </div>
 
                               {/* Smart follow-up suggestions */}
