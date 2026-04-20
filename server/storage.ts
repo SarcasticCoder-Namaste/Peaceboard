@@ -9,6 +9,9 @@ import {
   musicFavorites,
   musicHistory,
   emotionLogs,
+  invitations,
+  schools,
+  userSessions,
   type User,
   type UpsertUser,
   type Game,
@@ -29,6 +32,10 @@ import {
   type InsertMusicHistory,
   type EmotionLog,
   type InsertEmotionLog,
+  type Invitation,
+  type InsertInvitation,
+  type School,
+  type UserSession,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, sql, and, gte, count, ne, or, inArray } from "drizzle-orm";
@@ -98,6 +105,21 @@ export interface IStorage {
   setUserType(userId: string, userType: string): Promise<User>;
   deleteUserCascade(userId: string): Promise<void>;
   deleteGameSafe(gameId: number): Promise<{ deleted: boolean; reason?: string }>;
+
+  // Invitations
+  createInvitation(data: InsertInvitation & { code: string; expiresAt?: Date }): Promise<Invitation>;
+  getInvitationByCode(code: string): Promise<Invitation | undefined>;
+  getInvitationsByInviter(inviterId: string): Promise<Invitation[]>;
+  claimInvitation(code: string, claimedById: string): Promise<Invitation | undefined>;
+  revokeInvitation(code: string, inviterId: string): Promise<boolean>;
+
+  // Linked devices / sessions
+  getActiveSessionsForUser(userId: string): Promise<UserSession[]>;
+  revokeUserSession(sessionId: string, userId: string): Promise<void>;
+  revokeAllUserSessions(userId: string, exceptToken?: string): Promise<number>;
+
+  // Schools (admin)
+  getAllSchools(): Promise<Array<School & { studentCount: number; activeCount: number }>>;
 }
 
 export type AdminOverview = {
@@ -689,6 +711,80 @@ export class DatabaseStorage implements IStorage {
     }
     await db.delete(games).where(eq(games.id, gameId));
     return { deleted: true };
+  }
+
+  // ─── Invitations ──────────────────────────────────────────────
+  async createInvitation(data: InsertInvitation & { code: string; expiresAt?: Date }): Promise<Invitation> {
+    const [row] = await db.insert(invitations).values({
+      code: data.code,
+      inviterId: data.inviterId,
+      inviterName: data.inviterName ?? null,
+      message: data.message ?? null,
+      expiresAt: data.expiresAt ?? null,
+    }).returning();
+    return row;
+  }
+  async getInvitationByCode(code: string): Promise<Invitation | undefined> {
+    const [row] = await db.select().from(invitations).where(eq(invitations.code, code));
+    return row;
+  }
+  async getInvitationsByInviter(inviterId: string): Promise<Invitation[]> {
+    return db.select().from(invitations)
+      .where(eq(invitations.inviterId, inviterId))
+      .orderBy(desc(invitations.createdAt));
+  }
+  async claimInvitation(code: string, claimedById: string): Promise<Invitation | undefined> {
+    const [row] = await db.update(invitations)
+      .set({ status: "accepted", claimedById, claimedAt: new Date() })
+      .where(and(eq(invitations.code, code), eq(invitations.status, "pending")))
+      .returning();
+    return row;
+  }
+  async revokeInvitation(code: string, inviterId: string): Promise<boolean> {
+    const result = await db.update(invitations)
+      .set({ status: "revoked" })
+      .where(and(eq(invitations.code, code), eq(invitations.inviterId, inviterId)))
+      .returning({ id: invitations.id });
+    return result.length > 0;
+  }
+
+  // ─── Linked devices ──────────────────────────────────────────
+  async getActiveSessionsForUser(userId: string): Promise<UserSession[]> {
+    return db.select().from(userSessions)
+      .where(and(eq(userSessions.userId, userId), eq(userSessions.isActive, true)))
+      .orderBy(desc(userSessions.createdAt));
+  }
+  async revokeUserSession(sessionId: string, userId: string): Promise<void> {
+    await db.update(userSessions)
+      .set({ isActive: false })
+      .where(and(eq(userSessions.id, sessionId), eq(userSessions.userId, userId)));
+  }
+  async revokeAllUserSessions(userId: string, exceptToken?: string): Promise<number> {
+    const where = exceptToken
+      ? and(eq(userSessions.userId, userId), eq(userSessions.isActive, true), ne(userSessions.sessionToken, exceptToken))
+      : and(eq(userSessions.userId, userId), eq(userSessions.isActive, true));
+    const result = await db.update(userSessions).set({ isActive: false }).where(where).returning();
+    return result.length;
+  }
+
+  // ─── Schools (admin) ─────────────────────────────────────────
+  async getAllSchools(): Promise<Array<School & { studentCount: number; activeCount: number }>> {
+    const allSchools = await db.select().from(schools).orderBy(schools.name);
+    if (allSchools.length === 0) return [];
+    const counts = await db.select({
+      schoolId: users.schoolId,
+      total: count(users.id),
+      active: sql<number>`count(*) filter (where ${users.isActive} = true)`,
+    }).from(users).groupBy(users.schoolId);
+    const map = new Map<string, { total: number; active: number }>();
+    for (const c of counts) {
+      if (c.schoolId) map.set(c.schoolId, { total: Number(c.total), active: Number(c.active) });
+    }
+    return allSchools.map(s => ({
+      ...s,
+      studentCount: map.get(s.id)?.total ?? 0,
+      activeCount: map.get(s.id)?.active ?? 0,
+    }));
   }
 }
 

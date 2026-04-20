@@ -170,6 +170,25 @@ export const emotionLogs = pgTable("emotion_logs", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Friend invitations — share a link with a friend to join PeaceBoard
+export const invitations = pgTable("invitations", {
+  id: serial("id").primaryKey(),
+  code: varchar("code", { length: 16 }).unique().notNull(),
+  inviterId: varchar("inviter_id").notNull().references(() => users.id),
+  inviterName: varchar("inviter_name"),
+  message: text("message"),
+  status: varchar("status").notNull().default("pending"), // pending | accepted | revoked
+  claimedById: varchar("claimed_by_id").references(() => users.id),
+  claimedAt: timestamp("claimed_at"),
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+export const insertInvitationSchema = createInsertSchema(invitations).omit({
+  id: true, code: true, status: true, claimedById: true, claimedAt: true, createdAt: true,
+});
+export type Invitation = typeof invitations.$inferSelect;
+export type InsertInvitation = z.infer<typeof insertInvitationSchema>;
+
 export const insertMusicFavoriteSchema = createInsertSchema(musicFavorites).omit({ id: true, createdAt: true });
 export const insertMusicHistorySchema  = createInsertSchema(musicHistory).omit({ id: true, playedAt: true });
 export const insertEmotionLogSchema    = createInsertSchema(emotionLogs).omit({ id: true, createdAt: true });

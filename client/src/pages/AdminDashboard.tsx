@@ -20,7 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Users, Gamepad2, Trophy, Music, Brain, Heart, BarChart3,
   ShieldCheck, Search, Trash2, UserCog, Activity, AlertTriangle,
-  Download, ArrowLeft, Sparkles,
+  Download, ArrowLeft, Sparkles, Building2, Globe2, GraduationCap,
 } from "lucide-react";
 
 const fmtDate = (d: string | Date | null) => {
@@ -78,6 +78,9 @@ export default function AdminDashboard() {
   const { data: activity = [] } = useQuery<Activity[]>({ queryKey: ["/api/admin/activity"], enabled: isAdmin });
   const { data: wellness } = useQuery<Wellness>({ queryKey: ["/api/admin/wellness"], enabled: isAdmin });
   const { data: games = [] } = useQuery<Game[]>({ queryKey: ["/api/games"], enabled: isAdmin });
+  const { data: schools = [] } = useQuery<Array<{ id: string; name: string; domain?: string | null; studentCount: number; activeCount: number; createdAt: string | null }>>({
+    queryKey: ["/api/admin/schools"], enabled: isAdmin,
+  });
 
   const updateUser = useMutation({
     mutationFn: ({ id, body }: { id: string; body: any }) =>
@@ -228,9 +231,10 @@ export default function AdminDashboard() {
         </div>
 
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid grid-cols-2 md:grid-cols-5 mb-6 w-full max-w-3xl">
+          <TabsList className="grid grid-cols-3 md:grid-cols-6 mb-6 w-full max-w-4xl">
             <TabsTrigger value="overview"><BarChart3 className="w-4 h-4 mr-1 hidden sm:inline" />Overview</TabsTrigger>
             <TabsTrigger value="students"><Users className="w-4 h-4 mr-1 hidden sm:inline" />Students</TabsTrigger>
+            <TabsTrigger value="schools"><Building2 className="w-4 h-4 mr-1 hidden sm:inline" />Schools</TabsTrigger>
             <TabsTrigger value="content"><Gamepad2 className="w-4 h-4 mr-1 hidden sm:inline" />Content</TabsTrigger>
             <TabsTrigger value="wellness"><Heart className="w-4 h-4 mr-1 hidden sm:inline" />Wellness</TabsTrigger>
             <TabsTrigger value="activity"><Activity className="w-4 h-4 mr-1 hidden sm:inline" />Activity</TabsTrigger>
@@ -586,6 +590,105 @@ export default function AdminDashboard() {
                   ))}
                   {activity.length === 0 && <p className="text-sm text-slate-500 text-center py-6">No recent activity yet.</p>}
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* SCHOOLS */}
+          <TabsContent value="schools" className="space-y-6">
+            <div className="grid sm:grid-cols-3 gap-4">
+              <Card className="bg-white dark:bg-slate-800">
+                <CardContent className="p-5 flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-lg bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 flex items-center justify-center">
+                    <Building2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500">Schools connected</p>
+                    <p className="text-2xl font-bold">{schools.length}</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="bg-white dark:bg-slate-800">
+                <CardContent className="p-5 flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-lg bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-300 flex items-center justify-center">
+                    <GraduationCap className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500">Current users</p>
+                    <p className="text-2xl font-bold">{overview?.totalStudents ?? 0}</p>
+                    <p className="text-xs text-emerald-600 dark:text-emerald-400">{overview?.activeStudents ?? 0} active now</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="bg-white dark:bg-slate-800">
+                <CardContent className="p-5 flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-300 flex items-center justify-center">
+                    <BarChart3 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500">Avg. wellness</p>
+                    <p className="text-2xl font-bold">{overview?.avgWellness ?? 0}<span className="text-sm text-slate-400">/100</span></p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card className="bg-white dark:bg-slate-800">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Building2 className="w-5 h-5 text-blue-500" /> Connected schools</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {schools.length === 0 && (
+                  <p className="text-sm text-slate-500 text-center py-6">No schools connected yet.</p>
+                )}
+                <div className="divide-y divide-slate-200 dark:divide-slate-700">
+                  {schools.map(s => (
+                    <div key={s.id} className="flex items-center gap-3 py-3">
+                      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-400 to-purple-500 text-white flex items-center justify-center font-bold">
+                        {s.name?.[0]?.toUpperCase() || "S"}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{s.name}</p>
+                        <p className="text-xs text-slate-500 flex items-center gap-1">
+                          <Globe2 className="w-3 h-3" /> {s.domain || "no domain"} · joined {fmtDate(s.createdAt)}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-bold">{s.studentCount}</p>
+                        <p className="text-xs text-emerald-600 dark:text-emerald-400">{s.activeCount} active</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white dark:bg-slate-800">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><BarChart3 className="w-5 h-5 text-purple-500" /> Quick analytics</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
+                  <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-900/50">
+                    <p className="text-xs text-slate-500">Games done</p>
+                    <p className="text-xl font-bold">{overview?.totalGamesCompleted ?? 0}</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-900/50">
+                    <p className="text-xs text-slate-500">Music plays</p>
+                    <p className="text-xl font-bold">{overview?.totalMusicPlays ?? 0}</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-900/50">
+                    <p className="text-xs text-slate-500">Emotion checks</p>
+                    <p className="text-xl font-bold">{overview?.totalEmotionChecks ?? 0}</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-900/50">
+                    <p className="text-xs text-slate-500">Achievements</p>
+                    <p className="text-xl font-bold">{overview?.totalAchievementsEarned ?? 0}</p>
+                  </div>
+                </div>
+                <Button variant="outline" size="sm" className="mt-4" onClick={() => setLocation("/analytics")}>
+                  Open full analytics →
+                </Button>
               </CardContent>
             </Card>
           </TabsContent>

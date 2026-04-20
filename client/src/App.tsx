@@ -29,6 +29,8 @@ import FaceAnalysis from "@/pages/FaceAnalysis";
 import Profile from "@/pages/Profile";
 import AdminDashboard from "@/pages/AdminDashboard";
 import Diary from "@/pages/Diary";
+import Settings from "@/pages/Settings";
+import InviteLanding from "@/pages/InviteLanding";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -46,6 +48,8 @@ function Router() {
       <Route path="/face-analysis" component={FaceAnalysis} />
       <Route path="/profile" component={Profile} />
       <Route path="/diary" component={Diary} />
+      <Route path="/settings" component={Settings} />
+      <Route path="/invite/:code" component={InviteLanding} />
       <Route path="/admin" component={AdminDashboard} />
       <Route component={NotFound} />
     </Switch>

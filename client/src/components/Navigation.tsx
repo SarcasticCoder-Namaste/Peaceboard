@@ -28,6 +28,7 @@ export default function Navigation() {
     { href: "/check-emotion", label: "Check Your Emotion", icon: "🧠" },
     ...(user ? [{ href: "/diary", label: "Diary", icon: "📓" }] : []),
     ...(user ? [{ href: "/profile", label: "Profile", icon: "👤" }] : []),
+    ...(user ? [{ href: "/settings", label: "Settings", icon: "⚙️" }] : []),
     ...(isAdmin ? [{ href: "/admin", label: "Admin", icon: "🛡️" }] : []),
   ];
 

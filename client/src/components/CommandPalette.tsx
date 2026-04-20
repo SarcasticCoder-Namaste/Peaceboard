@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "wouter";
 import {
   Home, Gamepad2, Music, Trophy, BarChart3, Heart, User as UserIcon,
-  Shield, Sun, Moon, Search, LogIn, MessageSquare, Info, BookOpen,
+  Shield, Sun, Moon, Search, LogIn, MessageSquare, Info, BookOpen, Settings as SettingsIcon, UserPlus,
 } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/hooks/useAuth";
@@ -73,6 +73,8 @@ export default function CommandPalette() {
     { id: "emotion", label: "Check Your Emotion", hint: "AI face & mood analysis", icon: Heart, run: () => go("/check-emotion") },
     { id: "profile", label: "Your Profile", hint: "Stats, badges, history", icon: UserIcon, run: () => go("/profile"), show: !!user },
     { id: "diary", label: "Open Diary", hint: "Private journal · PIN-locked", icon: BookOpen, run: () => go("/diary"), show: !!user },
+    { id: "settings", label: "Settings", hint: "Notifications, devices, privacy", icon: SettingsIcon, run: () => go("/settings"), show: !!user },
+    { id: "invite", label: "Invite a Friend", hint: "Share PeaceBoard", icon: UserPlus, run: () => go("/settings"), show: !!user },
     { id: "analytics", label: "Open Analytics", hint: "Class & student insights", icon: BarChart3, run: () => go("/analytics"), show: isAdmin },
     { id: "admin", label: "Admin Console", hint: "Manage school", icon: Shield, run: () => go("/admin"), show: isAdmin },
     { id: "chat", label: "Open AI Assistant", hint: "Chat with Peace", icon: MessageSquare, run: openChat },

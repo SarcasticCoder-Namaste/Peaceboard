@@ -61,6 +61,11 @@ PeaceBoard is a comprehensive educational platform focused on empathy-building, 
 - **Gamification**: Star ratings, badges, and progress visualization
 - **Real-time Updates**: Live leaderboard updates and user ranking
 
+### Settings & Friend Invitations
+- **Settings page** (`/settings`): notification toggles (achievements / reminders / sounds / messages), font scaling, linked-device list with per-session sign-out, privacy/data export and wipe, friend invite manager.
+- **Invitations**: PostgreSQL-backed `invitations` table; backend routes for create, public lookup, list-mine, claim, and revoke; public landing page at `/invite/:code`.
+- **Admin Schools tab**: shows connected schools with student/active counts, current users summary, and quick analytics — pulls from `/api/admin/schools`.
+
 ### Analytics Dashboard (School Users)
 - **Student Metrics**: Active users, game completion rates, session times
 - **Category Breakdown**: Usage statistics by game categories

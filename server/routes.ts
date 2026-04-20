@@ -681,6 +681,157 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/admin/schools", async (_req, res) => {
+    try {
+      res.json(await storage.getAllSchools());
+    } catch (error) {
+      console.error("Error fetching schools:", error);
+      res.status(500).json({ message: "Failed to fetch schools" });
+    }
+  });
+
+  // ─── Invitations ──────────────────────────────────────────────
+  function makeInviteCode(): string {
+    const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    let s = "";
+    for (let i = 0; i < 8; i++) s += alphabet[Math.floor(Math.random() * alphabet.length)];
+    return s;
+  }
+
+  // Create an invite (auth required)
+  app.post("/api/invites", authenticate, async (req: any, res) => {
+    try {
+      const userId = req.user?.id || req.user?.userId;
+      if (!userId) return res.status(401).json({ message: "Not authenticated" });
+      const me = await storage.getUser(userId);
+      const message = typeof req.body?.message === "string" ? req.body.message.slice(0, 280) : null;
+      let code = makeInviteCode();
+      for (let i = 0; i < 5 && (await storage.getInvitationByCode(code)); i++) code = makeInviteCode();
+      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+      const invite = await storage.createInvitation({
+        inviterId: userId,
+        inviterName: me ? `${me.firstName ?? ""} ${me.lastName ?? ""}`.trim() || me.email || "A friend" : "A friend",
+        message,
+        code,
+        expiresAt,
+      });
+      res.status(201).json(invite);
+    } catch (error) {
+      console.error("Error creating invite:", error);
+      res.status(500).json({ message: "Failed to create invite" });
+    }
+  });
+
+  // Public lookup of an invite by code (used by /invite/:code page)
+  app.get("/api/invites/:code", async (req, res) => {
+    try {
+      const inv = await storage.getInvitationByCode(req.params.code.toUpperCase());
+      if (!inv) return res.status(404).json({ message: "Invite not found" });
+      const expired = inv.expiresAt && new Date(inv.expiresAt).getTime() < Date.now();
+      res.json({
+        code: inv.code,
+        inviterName: inv.inviterName,
+        message: inv.message,
+        status: expired ? "expired" : inv.status,
+        createdAt: inv.createdAt,
+        expiresAt: inv.expiresAt,
+      });
+    } catch (error) {
+      console.error("Error fetching invite:", error);
+      res.status(500).json({ message: "Failed to fetch invite" });
+    }
+  });
+
+  // List my invites
+  app.get("/api/invites/mine/list", authenticate, async (req: any, res) => {
+    try {
+      const userId = req.user?.id || req.user?.userId;
+      if (!userId) return res.status(401).json({ message: "Not authenticated" });
+      res.json(await storage.getInvitationsByInviter(userId));
+    } catch (error) {
+      console.error("Error listing invites:", error);
+      res.status(500).json({ message: "Failed to list invites" });
+    }
+  });
+
+  // Accept an invite (after sign-in/up)
+  app.post("/api/invites/:code/claim", authenticate, async (req: any, res) => {
+    try {
+      const userId = req.user?.id || req.user?.userId;
+      if (!userId) return res.status(401).json({ message: "Not authenticated" });
+      const code = req.params.code.toUpperCase();
+      const existing = await storage.getInvitationByCode(code);
+      if (!existing) return res.status(404).json({ message: "Invite not found" });
+      if (existing.inviterId === userId) return res.status(400).json({ message: "You can't claim your own invite." });
+      if (existing.status !== "pending") return res.status(409).json({ message: "Invite already used or revoked." });
+      if (existing.expiresAt && new Date(existing.expiresAt).getTime() < Date.now())
+        return res.status(410).json({ message: "Invite expired." });
+      const claimed = await storage.claimInvitation(code, userId);
+      res.json(claimed);
+    } catch (error) {
+      console.error("Error claiming invite:", error);
+      res.status(500).json({ message: "Failed to claim invite" });
+    }
+  });
+
+  // Revoke (inviter only)
+  app.delete("/api/invites/:code", authenticate, async (req: any, res) => {
+    try {
+      const userId = req.user?.id || req.user?.userId;
+      if (!userId) return res.status(401).json({ message: "Not authenticated" });
+      const ok = await storage.revokeInvitation(req.params.code.toUpperCase(), userId);
+      if (!ok) return res.status(404).json({ message: "Invite not found or not yours." });
+      res.json({ ok: true });
+    } catch (error) {
+      console.error("Error revoking invite:", error);
+      res.status(500).json({ message: "Failed to revoke invite" });
+    }
+  });
+
+  // ─── Linked devices ──────────────────────────────────────────
+  app.get("/api/me/sessions", authenticate, async (req: any, res) => {
+    try {
+      const userId = req.user?.id || req.user?.userId;
+      if (!userId) return res.status(401).json({ message: "Not authenticated" });
+      const list = await storage.getActiveSessionsForUser(userId);
+      res.json(list.map(s => ({
+        id: s.id,
+        deviceInfo: s.deviceInfo,
+        ipAddress: s.ipAddress,
+        createdAt: s.createdAt,
+        expiresAt: s.expiresAt,
+        current: req.sessionToken === s.sessionToken,
+      })));
+    } catch (error) {
+      console.error("Error fetching sessions:", error);
+      res.status(500).json({ message: "Failed to fetch sessions" });
+    }
+  });
+
+  app.delete("/api/me/sessions/:id", authenticate, async (req: any, res) => {
+    try {
+      const userId = req.user?.id || req.user?.userId;
+      if (!userId) return res.status(401).json({ message: "Not authenticated" });
+      await storage.revokeUserSession(req.params.id, userId);
+      res.json({ ok: true });
+    } catch (error) {
+      console.error("Error revoking session:", error);
+      res.status(500).json({ message: "Failed to revoke session" });
+    }
+  });
+
+  app.post("/api/me/sessions/revoke-others", authenticate, async (req: any, res) => {
+    try {
+      const userId = req.user?.id || req.user?.userId;
+      if (!userId) return res.status(401).json({ message: "Not authenticated" });
+      const count = await storage.revokeAllUserSessions(userId, req.sessionToken);
+      res.json({ ok: true, revoked: count });
+    } catch (error) {
+      console.error("Error revoking other sessions:", error);
+      res.status(500).json({ message: "Failed to revoke sessions" });
+    }
+  });
+
   // Initialize sample data if needed
   app.post("/api/init-data", async (req, res) => {
     try {
