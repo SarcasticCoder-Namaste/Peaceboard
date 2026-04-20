@@ -12,8 +12,9 @@ import {
   Bot, X, Send, Mic, MicOff, Settings, Trash2, Download,
   Sparkles, Search, Copy, Check,
   ThumbsUp, ThumbsDown, Cpu, Cloud, ArrowDown, Minus, Smile,
-  Wand2, Zap,
+  Wand2, Zap, BookOpen,
 } from "lucide-react";
+import { useLocation } from "wouter";
 import { ask as brainAsk, teach as brainTeach, type Persona as BrainPersona } from "@/lib/peaceBrain";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -64,13 +65,18 @@ const THEMES: Theme[] = [
   { id: "sunset", name: "Sunset", bg: "bg-orange-50", bubble: "bg-white text-slate-800", accent: "orange" },
 ];
 
-const QUICK_MOODS = [
-  { emoji: "😢", label: "Sad", msg: "I'm feeling sad right now and could use some support." },
-  { emoji: "😰", label: "Anxious", msg: "I'm feeling anxious. Can you help me calm down?" },
-  { emoji: "😡", label: "Frustrated", msg: "I'm really frustrated and need to talk about it." },
-  { emoji: "🤩", label: "Excited", msg: "Something great happened! I'm feeling really excited!" },
-  { emoji: "💭", label: "Advice", msg: "I need some advice on a situation I'm dealing with." },
-  { emoji: "🌱", label: "Just chat", msg: "I just want to have a nice conversation today." },
+type QuickAction =
+  | { kind: "msg"; emoji: string; label: string; msg: string }
+  | { kind: "link"; emoji: string; label: string; href: string };
+
+const QUICK_MOODS: QuickAction[] = [
+  { kind: "msg", emoji: "😢", label: "Sad", msg: "I'm feeling sad right now and could use some support." },
+  { kind: "msg", emoji: "😰", label: "Anxious", msg: "I'm feeling anxious. Can you help me calm down?" },
+  { kind: "msg", emoji: "😡", label: "Frustrated", msg: "I'm really frustrated and need to talk about it." },
+  { kind: "msg", emoji: "🤩", label: "Excited", msg: "Something great happened! I'm feeling really excited!" },
+  { kind: "msg", emoji: "💭", label: "Advice", msg: "I need some advice on a situation I'm dealing with." },
+  { kind: "msg", emoji: "🌱", label: "Just chat", msg: "I just want to have a nice conversation today." },
+  { kind: "link", emoji: "📓", label: "Open Diary", href: "/diary" },
 ];
 
 const REACTIONS = ["❤️", "😊", "👍", "💡", "🌟", "🙏"];
@@ -179,6 +185,8 @@ export default function FloatingChatbot() {
 
   const { user } = useAuth();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
+  const goDiary = () => { setLocation("/diary"); setIsOpen(false); };
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
@@ -834,18 +842,25 @@ export default function FloatingChatbot() {
                               <Zap className="w-3 h-3" /> Quick prompts
                             </p>
                             <div className="flex flex-wrap gap-1.5">
-                              {QUICK_MOODS.map((m, i) => (
-                                <motion.button
-                                  key={m.label}
-                                  initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-                                  transition={{ delay: i * 0.04 }}
-                                  whileHover={{ y: -2, scale: 1.05 }} whileTap={{ scale: 0.95 }}
-                                  onClick={() => sendMessage(m.msg)}
-                                  className="text-xs pl-2 pr-3 py-1.5 rounded-full bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-700 hover:shadow-md text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-600 transition-all flex items-center gap-1"
-                                >
-                                  <span className="text-sm">{m.emoji}</span> {m.label}
-                                </motion.button>
-                              ))}
+                              {QUICK_MOODS.map((m, i) => {
+                                const isLink = m.kind === "link";
+                                return (
+                                  <motion.button
+                                    key={m.label}
+                                    initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: i * 0.04 }}
+                                    whileHover={{ y: -2, scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                                    onClick={() => m.kind === "link" ? (setLocation(m.href), setIsOpen(false)) : sendMessage(m.msg)}
+                                    className={`text-xs pl-2 pr-3 py-1.5 rounded-full hover:shadow-md transition-all flex items-center gap-1 border ${
+                                      isLink
+                                        ? "bg-gradient-to-br from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30 border-purple-200 dark:border-purple-800/60 text-purple-700 dark:text-purple-200 font-medium"
+                                        : "bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-700 border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200"
+                                    }`}
+                                  >
+                                    <span className="text-sm">{m.emoji}</span> {m.label}
+                                  </motion.button>
+                                );
+                              })}
                             </div>
                           </motion.div>
                         )}
@@ -860,6 +875,11 @@ export default function FloatingChatbot() {
                           <Button variant="ghost" size="icon" onClick={() => setShowMoodDock(s => !s)} title="Quick prompts"
                             className={`w-9 h-9 rounded-xl shrink-0 ${showMoodDock ? "text-blue-500 bg-blue-50 dark:bg-blue-900/20" : "text-slate-400 hover:text-slate-600"}`}>
                             <Sparkles className="w-4 h-4" />
+                          </Button>
+
+                          <Button variant="ghost" size="icon" onClick={goDiary} title="Open my Diary"
+                            className="w-9 h-9 rounded-xl shrink-0 text-purple-500 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20">
+                            <BookOpen className="w-4 h-4" />
                           </Button>
 
                           <Textarea
