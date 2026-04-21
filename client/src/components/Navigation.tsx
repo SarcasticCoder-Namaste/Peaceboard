@@ -9,6 +9,8 @@ import { motion, AnimatePresence, useMotionValueEvent, useScroll, useTransform }
 import logoImage from "@assets/generated_images/PeaceBoard_educational_platform_logo_a1809512.png";
 import { useAvatar } from "@/hooks/useAvatar";
 import AvatarPicker from "@/components/AvatarPicker";
+import NotificationsCenter from "@/components/NotificationsCenter";
+import StreakBadge from "@/components/StreakBadge";
 
 export default function Navigation() {
   const [location] = useLocation();
@@ -135,6 +137,8 @@ export default function Navigation() {
 
             {/* Right side */}
             <div className="flex items-center space-x-2 sm:space-x-3">
+              <StreakBadge />
+              {user && <NotificationsCenter />}
               {user ? (
                 <motion.div
                   initial={{ opacity: 0, scale: 0.95 }}

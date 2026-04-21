@@ -450,7 +450,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/chat", async (req, res) => {
+  app.post("/api/chat", authRateLimit(60, 1), async (req, res) => {
     try {
       const { userId, message, history, persona } = req.body;
 
@@ -681,7 +681,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/admin/schools", async (_req, res) => {
+  app.get("/api/admin/schools", requireSchoolAdmin, async (_req, res) => {
     try {
       res.json(await storage.getAllSchools());
     } catch (error) {

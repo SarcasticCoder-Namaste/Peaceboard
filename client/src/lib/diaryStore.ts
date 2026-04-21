@@ -1,5 +1,8 @@
 // Local-only private diary storage. All entries live in localStorage,
-// scoped per user. Optional 4-digit PIN protects access (hashed).
+// scoped per user, in plaintext on this device. The optional 4-digit PIN
+// only gates the diary UI (its hash is stored locally) — it does NOT
+// encrypt the underlying entries. Anyone with access to this browser
+// profile / DevTools could read the raw payload.
 
 export type DiaryType = "thought" | "feeling" | "gratitude" | "dream" | "secret" | "goal" | "memory";
 
@@ -10,8 +13,23 @@ export interface DiaryEntry {
   body: string;
   mood: number; // 1-5
   isSecret: boolean; // hide preview on locked screen
+  pinned?: boolean;
+  tags?: string[];
   createdAt: number;
   updatedAt: number;
+}
+
+export interface DiaryStats {
+  total: number;
+  thisWeek: number;
+  thisMonth: number;
+  avgMood: number; // 1..5
+  topMoodEmoji: string;
+  topType?: DiaryType;
+  longestStreak: number; // consecutive writing days
+  currentStreak: number;
+  totalWords: number;
+  uniqueTags: number;
 }
 
 const entriesKey = (uid: string) => `peaceboard_diary_${uid}`;
@@ -50,10 +68,20 @@ export function listEntries(userId: string): DiaryEntry[] {
 export function saveEntry(userId: string, entry: Omit<DiaryEntry, "id" | "createdAt" | "updatedAt"> & { id?: string }): DiaryEntry {
   const all = listEntries(userId);
   const now = Date.now();
+  const cleanTags = Array.isArray(entry.tags)
+    ? Array.from(new Set(entry.tags.map(t => String(t).trim().toLowerCase()).filter(Boolean))).slice(0, 12)
+    : [];
   if (entry.id) {
     const i = all.findIndex((e) => e.id === entry.id);
     if (i >= 0) {
-      const updated: DiaryEntry = { ...all[i], ...entry, id: all[i].id, updatedAt: now } as DiaryEntry;
+      const updated: DiaryEntry = {
+        ...all[i],
+        ...entry,
+        tags: cleanTags,
+        pinned: entry.pinned ?? all[i].pinned ?? false,
+        id: all[i].id,
+        updatedAt: now,
+      } as DiaryEntry;
       all[i] = updated;
       localStorage.setItem(entriesKey(userId), JSON.stringify(all));
       return updated;
@@ -66,6 +94,8 @@ export function saveEntry(userId: string, entry: Omit<DiaryEntry, "id" | "create
     body: entry.body,
     mood: entry.mood,
     isSecret: entry.isSecret,
+    pinned: entry.pinned ?? false,
+    tags: cleanTags,
     createdAt: now,
     updatedAt: now,
   };
@@ -78,13 +108,160 @@ export function deleteEntry(userId: string, id: string) {
   localStorage.setItem(entriesKey(userId), JSON.stringify(all));
 }
 
+export function togglePin(userId: string, id: string) {
+  const all = listEntries(userId);
+  const i = all.findIndex(e => e.id === id);
+  if (i < 0) return;
+  all[i] = { ...all[i], pinned: !all[i].pinned, updatedAt: Date.now() };
+  localStorage.setItem(entriesKey(userId), JSON.stringify(all));
+}
+
+// ─── Stats / analytics ────────────────────────────────────────────────────────
+export function getDiaryStats(userId: string): DiaryStats {
+  const all = listEntries(userId);
+  if (all.length === 0) {
+    return {
+      total: 0, thisWeek: 0, thisMonth: 0, avgMood: 0,
+      topMoodEmoji: "—", longestStreak: 0, currentStreak: 0, totalWords: 0, uniqueTags: 0,
+    };
+  }
+  const now = Date.now();
+  const week = 7 * 86400_000, month = 30 * 86400_000;
+  const moods = all.map(e => e.mood);
+  const avgMood = moods.reduce((a, b) => a + b, 0) / moods.length;
+  const moodHist: Record<number, number> = {};
+  moods.forEach(m => { moodHist[m] = (moodHist[m] || 0) + 1; });
+  const topMood = Number(Object.entries(moodHist).sort((a, b) => b[1] - a[1])[0]?.[0] || 3);
+
+  const typeHist: Record<string, number> = {};
+  all.forEach(e => { typeHist[e.type] = (typeHist[e.type] || 0) + 1; });
+  const topType = Object.entries(typeHist).sort((a, b) => b[1] - a[1])[0]?.[0] as DiaryType | undefined;
+
+  const days = new Set(all.map(e => new Date(e.createdAt).toISOString().slice(0, 10)));
+  const sortedDays = Array.from(days).sort();
+  let longest = 0, run = 0, prev: number | null = null;
+  for (const d of sortedDays) {
+    const t = new Date(d).getTime();
+    if (prev !== null && t - prev === 86400_000) run++;
+    else run = 1;
+    if (run > longest) longest = run;
+    prev = t;
+  }
+  const today = new Date().toISOString().slice(0, 10);
+  const yesterday = new Date(Date.now() - 86400_000).toISOString().slice(0, 10);
+  let current = 0;
+  let cursor = days.has(today) ? new Date() : days.has(yesterday) ? new Date(Date.now() - 86400_000) : null;
+  while (cursor) {
+    const k = cursor.toISOString().slice(0, 10);
+    if (days.has(k)) { current++; cursor.setDate(cursor.getDate() - 1); }
+    else break;
+  }
+
+  const totalWords = all.reduce((sum, e) => sum + (e.body || "").split(/\s+/).filter(Boolean).length, 0);
+  const uniqueTags = new Set(all.flatMap(e => e.tags || [])).size;
+
+  return {
+    total: all.length,
+    thisWeek: all.filter(e => now - e.createdAt < week).length,
+    thisMonth: all.filter(e => now - e.createdAt < month).length,
+    avgMood,
+    topMoodEmoji: MOOD_EMOJIS[topMood - 1] || "😐",
+    topType,
+    longestStreak: longest,
+    currentStreak: current,
+    totalWords,
+    uniqueTags,
+  };
+}
+
+// Date-keyed mood map for the calendar heatmap. Keys are YYYY-MM-DD,
+// values are 1..5 (most recent entry of the day "wins").
+export function getMoodByDate(userId: string): Record<string, number> {
+  const all = listEntries(userId).slice().sort((a, b) => a.createdAt - b.createdAt);
+  const out: Record<string, number> = {};
+  for (const e of all) {
+    const k = new Date(e.createdAt).toISOString().slice(0, 10);
+    out[k] = e.mood;
+  }
+  return out;
+}
+
+export function listAllTags(userId: string): { tag: string; count: number }[] {
+  const all = listEntries(userId);
+  const map = new Map<string, number>();
+  all.forEach(e => (e.tags || []).forEach(t => map.set(t, (map.get(t) || 0) + 1)));
+  return Array.from(map.entries())
+    .map(([tag, count]) => ({ tag, count }))
+    .sort((a, b) => b.count - a.count);
+}
+
+// Deterministic daily writing prompt — same for everyone on the same date,
+// rotates through a curated list.
+const PROMPTS = [
+  "What is one small thing that made today a little brighter?",
+  "Write a thank-you note to someone — even if you'll never send it.",
+  "Describe the version of yourself you're becoming.",
+  "What's a worry you can put down for tonight?",
+  "List three things you noticed with your senses today.",
+  "If today had a soundtrack, what song would open it?",
+  "What did kindness look like today — given or received?",
+  "Where did you feel most yourself this week?",
+  "What's a small win worth celebrating?",
+  "Finish the sentence: I'm proud of myself for…",
+  "What would you tell a friend who feels exactly how you feel right now?",
+  "What's something you're ready to forgive yourself for?",
+  "Describe a tiny moment of beauty from the last 24 hours.",
+  "What's one boundary you'd like to honor tomorrow?",
+  "Write about a feeling you usually push away.",
+  "What did your body try to tell you today?",
+  "Who in your life deserves more thanks than you give them?",
+  "What would 'enough' look like, just for today?",
+  "Describe a place that always feels safe to you.",
+  "What hopes are quietly growing in you right now?",
+  "What did you learn this week that future-you should remember?",
+  "If you could whisper one thing to your past self, what would it be?",
+];
+export function getDailyPrompt(): string {
+  const d = new Date();
+  const idx = (d.getFullYear() * 372 + (d.getMonth() + 1) * 31 + d.getDate()) % PROMPTS.length;
+  return PROMPTS[idx];
+}
+
+// ─── Drafts (autosave) ────────────────────────────────────────────────────────
+const draftKey = (uid: string) => `peaceboard_diary_draft_${uid}`;
+export interface DiaryDraft {
+  type: DiaryType;
+  title: string;
+  body: string;
+  mood: number;
+  isSecret: boolean;
+  tags: string[];
+  editingId?: string;
+  savedAt: number;
+}
+export function saveDraft(userId: string, d: DiaryDraft) {
+  try { localStorage.setItem(draftKey(userId), JSON.stringify(d)); } catch {}
+}
+export function loadDraft(userId: string): DiaryDraft | null {
+  try {
+    const raw = localStorage.getItem(draftKey(userId));
+    if (!raw) return null;
+    const d = JSON.parse(raw);
+    return d && typeof d === "object" ? (d as DiaryDraft) : null;
+  } catch { return null; }
+}
+export function clearDraft(userId: string) {
+  try { localStorage.removeItem(draftKey(userId)); } catch {}
+}
+
 export function exportEntries(userId: string) {
   const all = listEntries(userId);
   const lines = all.map((e) => {
     const t = TYPE_META[e.type];
+    const tags = (e.tags || []).map(x => `#${x}`).join(" ");
     return [
-      `# ${t.emoji} ${e.title}`,
-      `_${t.label} · ${MOOD_EMOJIS[e.mood - 1]} · ${new Date(e.createdAt).toLocaleString()}_`,
+      `# ${t.emoji} ${e.title || "(untitled)"}`,
+      `_${t.label} · ${MOOD_EMOJIS[e.mood - 1]} · ${new Date(e.createdAt).toLocaleString()}${tags ? `  ·  ${tags}` : ""}${e.pinned ? "  ·  📌 pinned" : ""}_`,
       "",
       e.body,
       "",
@@ -97,6 +274,25 @@ export function exportEntries(userId: string) {
   const a = document.createElement("a");
   a.href = url;
   a.download = `my-diary-${new Date().toISOString().slice(0, 10)}.md`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+export function exportEntriesJSON(userId: string) {
+  const all = listEntries(userId);
+  const payload = {
+    app: "PeaceBoard",
+    kind: "diary-export",
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    count: all.length,
+    entries: all,
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `my-diary-${new Date().toISOString().slice(0, 10)}.json`;
   a.click();
   URL.revokeObjectURL(url);
 }

@@ -3,6 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import Confetti from "@/components/Confetti";
+import { pingStreak } from "@/lib/streak";
+import { pushNotification } from "@/lib/notifications";
 
 const STREAK_MILESTONES = [3, 7, 14, 30, 60, 100];
 const POINT_MILESTONES = [50, 100, 250, 500, 1000, 2500];
@@ -71,6 +73,21 @@ export function AchievementWatcher() {
         description: "Nice work — keep that streak going.",
       });
       celebrated = true;
+      const ping = pingStreak(user.id);
+      pushNotification(user.id, {
+        type: "game", emoji: "🎮",
+        title: delta === 1 ? "Game completed!" : `${delta} games completed`,
+        body: "Your effort is paying off. See your progress on the profile.",
+        href: "/profile",
+      });
+      if (ping.milestone) {
+        pushNotification(user.id, {
+          type: "streak", emoji: "🔥",
+          title: `${ping.milestone}-day kindness streak!`,
+          body: "You showed up — that matters.",
+          href: "/profile",
+        });
+      }
     }
 
     // New achievement(s)
@@ -81,6 +98,12 @@ export function AchievementWatcher() {
         description: newest?.description || "You earned a new badge.",
       });
       celebrated = true;
+      pushNotification(user.id, {
+        type: "achievement", emoji: "🏆",
+        title: `Achievement: ${newest?.title || "Badge unlocked"}`,
+        body: newest?.description || "You earned a new badge.",
+        href: "/profile",
+      });
     }
 
     // Point milestones
@@ -91,6 +114,12 @@ export function AchievementWatcher() {
           description: "Your kindness is adding up.",
         });
         celebrated = true;
+        pushNotification(user.id, {
+          type: "achievement", emoji: "✨",
+          title: `${m} points reached`,
+          body: "Your kindness is adding up. Keep going!",
+          href: "/profile",
+        });
       }
     }
 

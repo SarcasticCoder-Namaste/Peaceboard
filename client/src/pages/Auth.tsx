@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { runPostLoginTasks } from "@/lib/postLogin";
 import { School, GraduationCap, UserCircle, Info } from "lucide-react";
 
 type AuthTab = "school" | "student" | "guest";
@@ -38,8 +39,10 @@ export default function Auth() {
       const response = await apiRequest("POST", "/api/auth/school", data);
       return response.json();
     },
-    onSuccess: (data) => {
-      login(data.user || data);
+    onSuccess: async (data) => {
+      const u = data.user || data;
+      login(u);
+      await runPostLoginTasks(u?.id);
       toast({
         title: "Welcome back!",
         description: "Successfully logged in to your school dashboard.",
@@ -60,8 +63,10 @@ export default function Auth() {
       const response = await apiRequest("POST", "/api/auth/student", data);
       return response.json();
     },
-    onSuccess: (data) => {
-      login(data.user || data);
+    onSuccess: async (data) => {
+      const u = data.user || data;
+      login(u);
+      await runPostLoginTasks(u?.id);
       toast({
         title: "Welcome!",
         description: "Successfully logged in to your learning space.",
@@ -86,8 +91,10 @@ export default function Auth() {
       });
       return response.json();
     },
-    onSuccess: (data) => {
-      login(data.user || data);
+    onSuccess: async (data) => {
+      const u = data.user || data;
+      login(u);
+      await runPostLoginTasks(u?.id);
       toast({
         title: "Welcome, guest!",
         description: "Your 24-hour session has started. Enjoy exploring PeaceBoard!",

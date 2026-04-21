@@ -1,9 +1,14 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Keyboard, X } from "lucide-react";
+import { useLocation } from "wouter";
 
 const SHORTCUTS: { keys: string[]; label: string }[] = [
   { keys: ["⌘", "K"], label: "Open command palette (Ctrl+K on Windows)" },
+  { keys: ["⌘", "J"], label: "Open the Peace chatbot" },
+  { keys: ["G", "D"], label: "Jump to your Diary" },
+  { keys: ["G", "H"], label: "Go to Dashboard / Home" },
+  { keys: ["G", "M"], label: "Go to Music center" },
   { keys: ["?"], label: "Show this keyboard shortcuts help" },
   { keys: ["Esc"], label: "Close any open dialog or panel" },
   { keys: ["Tab"], label: "Reveal the “Skip to content” link" },
@@ -13,8 +18,18 @@ const SHORTCUTS: { keys: string[]; label: string }[] = [
 
 export default function KeyboardShortcuts() {
   const [open, setOpen] = useState(false);
+  const [, setLocation] = useLocation();
 
   useEffect(() => {
+    let leader = false;
+    let leaderTimer: ReturnType<typeof setTimeout> | null = null;
+    const clearLeader = () => { leader = false; if (leaderTimer) { clearTimeout(leaderTimer); leaderTimer = null; } };
+    const armLeader = () => {
+      leader = true;
+      if (leaderTimer) clearTimeout(leaderTimer);
+      leaderTimer = setTimeout(clearLeader, 1200);
+    };
+
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
       const typing =
@@ -22,16 +37,27 @@ export default function KeyboardShortcuts() {
         (target.tagName === "INPUT" ||
           target.tagName === "TEXTAREA" ||
           target.isContentEditable);
-      if (e.key === "?" && !typing && !e.metaKey && !e.ctrlKey && !e.altKey) {
+      if (typing) return;
+      if (e.key === "?" && !e.metaKey && !e.ctrlKey && !e.altKey) {
         e.preventDefault();
         setOpen((o) => !o);
       } else if (e.key === "Escape" && open) {
         setOpen(false);
+      } else if ((e.key === "g" || e.key === "G") && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        armLeader();
+      } else if (leader) {
+        const k = e.key.toLowerCase();
+        if (k === "d") { e.preventDefault(); setLocation("/diary"); clearLeader(); }
+        else if (k === "h") { e.preventDefault(); setLocation("/home"); clearLeader(); }
+        else if (k === "m") { e.preventDefault(); setLocation("/music"); clearLeader(); }
+        else if (k === "p") { e.preventDefault(); setLocation("/profile"); clearLeader(); }
+        else if (k === "s") { e.preventDefault(); setLocation("/settings"); clearLeader(); }
+        else clearLeader();
       }
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
+    return () => { window.removeEventListener("keydown", onKey); if (leaderTimer) clearTimeout(leaderTimer); };
+  }, [open, setLocation]);
 
   return (
     <AnimatePresence>
