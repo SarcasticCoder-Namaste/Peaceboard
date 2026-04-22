@@ -723,6 +723,319 @@ function KindnessCatcherGame({ duration = 30, onComplete }: { duration?: number;
   );
 }
 
+// ─── Mood Mixer Game ─────────────────────────────────────────────────────────
+// Player adjusts R/G/B sliders to match a target colour associated with a mood.
+// Score = proximity of their colour to the target across rounds.
+function MoodMixerGame({ rounds = 5, onComplete }: { rounds?: number; onComplete: (score: number, total: number) => void }) {
+  const PALETTE = [
+    { mood: "Calm",       hint: "soft, cool, watery",     rgb: [125, 200, 230] },
+    { mood: "Joy",        hint: "warm, sunny, bright",    rgb: [255, 210,  90] },
+    { mood: "Anger",      hint: "fiery and intense",      rgb: [220,  60,  50] },
+    { mood: "Sadness",    hint: "deep, quiet, blue",      rgb: [ 60,  90, 160] },
+    { mood: "Hope",       hint: "fresh, green, growing",  rgb: [110, 210, 140] },
+    { mood: "Love",       hint: "soft pink, tender",      rgb: [240, 130, 170] },
+    { mood: "Peace",      hint: "pale lavender, gentle",  rgb: [200, 195, 235] },
+    { mood: "Energy",     hint: "vivid orange, alive",    rgb: [255, 140,  60] },
+    { mood: "Mystery",    hint: "deep purple, dreamy",    rgb: [110,  70, 150] },
+  ];
+
+  const [order]   = useState(() => [...PALETTE].sort(() => Math.random() - 0.5).slice(0, rounds));
+  const [idx, setIdx] = useState(0);
+  const [r, setR] = useState(128);
+  const [g, setG] = useState(128);
+  const [b, setB] = useState(128);
+  const [submitted, setSubmitted] = useState(false);
+  const [results, setResults] = useState<number[]>([]); // 0..10 each round
+  const [done, setDone] = useState(false);
+
+  const target = order[idx];
+  const distance = Math.sqrt(
+    Math.pow(target.rgb[0] - r, 2) +
+    Math.pow(target.rgb[1] - g, 2) +
+    Math.pow(target.rgb[2] - b, 2)
+  );
+  const maxDist = Math.sqrt(3 * 255 * 255);
+  const proximity = 1 - distance / maxDist; // 0..1
+  const stars = Math.round(proximity * 10);
+
+  const submit = () => {
+    setSubmitted(true);
+    setResults(rs => [...rs, stars]);
+  };
+
+  const next = () => {
+    if (idx + 1 < order.length) {
+      setIdx(i => i + 1);
+      setR(128); setG(128); setB(128);
+      setSubmitted(false);
+    } else {
+      setDone(true);
+    }
+  };
+
+  if (done) {
+    const total = results.reduce((a, n) => a + n, 0);
+    return (
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center space-y-4 py-4">
+        <div className="text-6xl">🎨</div>
+        <p className="text-xl font-bold text-slate-900 dark:text-white">Beautiful work</p>
+        <p className="text-sm text-slate-500">You captured {total} out of {order.length * 10} feelings.</p>
+        <div className="flex justify-center gap-1.5">
+          {results.map((s, i) => (
+            <div key={i} className={`w-4 h-4 rounded-full ${s >= 8 ? "bg-emerald-500" : s >= 5 ? "bg-amber-400" : "bg-rose-400"}`} title={`Round ${i+1}: ${s}/10`} />
+          ))}
+        </div>
+        <Button onClick={() => onComplete(total, order.length * 10)} className="bg-gradient-to-r from-pink-500 to-violet-600 text-white">
+          Continue <ArrowRight className="w-4 h-4 ml-1" />
+        </Button>
+      </motion.div>
+    );
+  }
+
+  const userColor   = `rgb(${r}, ${g}, ${b})`;
+  const targetColor = `rgb(${target.rgb[0]}, ${target.rgb[1]}, ${target.rgb[2]})`;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between text-sm">
+        <span className="text-slate-500">Round {idx + 1} of {order.length}</span>
+        <span className="font-semibold text-slate-700 dark:text-slate-200">Mix the colour of <span className="text-pink-500">{target.mood}</span></span>
+      </div>
+
+      <p className="text-xs text-slate-500 italic text-center">{target.hint}</p>
+
+      {/* Side-by-side colour preview */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700">
+          <div className="h-32" style={{ background: targetColor }} />
+          <div className="bg-white dark:bg-slate-800 p-2 text-center">
+            <p className="text-[10px] text-slate-500 uppercase tracking-wider">Target</p>
+            <p className="text-sm font-bold text-slate-900 dark:text-white">{target.mood}</p>
+          </div>
+        </div>
+        <div className="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700">
+          <div className="h-32 transition-colors" style={{ background: userColor }} />
+          <div className="bg-white dark:bg-slate-800 p-2 text-center">
+            <p className="text-[10px] text-slate-500 uppercase tracking-wider">Your mix</p>
+            <p className="text-sm font-bold text-slate-900 dark:text-white">
+              {submitted ? (stars >= 8 ? "🎯 Brilliant!" : stars >= 5 ? "✨ Close" : "Try again") : `${stars}/10`}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Sliders */}
+      <div className="space-y-2.5">
+        {([
+          { label: "Red",   val: r, set: setR, color: "accent-red-500"   },
+          { label: "Green", val: g, set: setG, color: "accent-green-500" },
+          { label: "Blue",  val: b, set: setB, color: "accent-blue-500"  },
+        ] as const).map(s => (
+          <div key={s.label}>
+            <div className="flex justify-between text-xs text-slate-500 mb-1">
+              <span>{s.label}</span><span className="font-mono">{s.val}</span>
+            </div>
+            <input
+              type="range" min={0} max={255} value={s.val}
+              onChange={e => s.set(Number(e.target.value))}
+              disabled={submitted}
+              className={`w-full ${s.color}`}
+              aria-label={s.label}
+            />
+          </div>
+        ))}
+      </div>
+
+      {!submitted ? (
+        <Button onClick={submit} className="w-full bg-gradient-to-r from-pink-500 to-violet-600 text-white">
+          Lock In My Mix <Check className="w-4 h-4 ml-1.5" />
+        </Button>
+      ) : (
+        <Button onClick={next} className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white">
+          {idx + 1 < order.length ? "Next Feeling" : "See Results"} <ArrowRight className="w-4 h-4 ml-1" />
+        </Button>
+      )}
+    </div>
+  );
+}
+
+// ─── Emotion Painter Game ────────────────────────────────────────────────────
+// Floating coloured emotion bubbles drift around. The player must tap the
+// bubbles whose emotion matches the prompt. Wrong taps cost points.
+function EmotionPainterGame({ duration = 30, onComplete }: { duration?: number; onComplete: (score: number, total: number) => void }) {
+  const EMOTIONS = [
+    { name: "Joy",     emoji: "😊", color: "#facc15" },
+    { name: "Calm",    emoji: "😌", color: "#7dd3fc" },
+    { name: "Sad",     emoji: "😢", color: "#60a5fa" },
+    { name: "Anger",   emoji: "😠", color: "#f87171" },
+    { name: "Fear",    emoji: "😨", color: "#a78bfa" },
+    { name: "Love",    emoji: "🥰", color: "#f472b6" },
+    { name: "Surprise",emoji: "😲", color: "#fb923c" },
+  ];
+  const W = 360, H = 380;
+  type Bubble = { id: number; x: number; y: number; vx: number; vy: number; emotion: typeof EMOTIONS[number]; r: number; popping?: boolean };
+
+  const [target, setTarget] = useState(() => EMOTIONS[Math.floor(Math.random() * EMOTIONS.length)]);
+  const [bubbles, setBubbles] = useState<Bubble[]>([]);
+  const [score, setScore] = useState(0);
+  const [streak, setStreak] = useState(0);
+  const [misses, setMisses] = useState(0);
+  const [time, setTime] = useState(duration);
+  const [done, setDone] = useState(false);
+  const [flash, setFlash] = useState<"good" | "bad" | null>(null);
+  const idRef = useRef(0);
+
+  // Spawn bubbles
+  useEffect(() => {
+    if (done) return;
+    const spawn = setInterval(() => {
+      setBubbles(bs => {
+        if (bs.length >= 9) return bs;
+        const e = EMOTIONS[Math.floor(Math.random() * EMOTIONS.length)];
+        return [...bs, {
+          id: idRef.current++,
+          x: 30 + Math.random() * (W - 60),
+          y: 30 + Math.random() * (H - 60),
+          vx: (Math.random() - 0.5) * 1.6,
+          vy: (Math.random() - 0.5) * 1.6,
+          emotion: e,
+          r: 32,
+        }];
+      });
+    }, 700);
+    return () => clearInterval(spawn);
+  }, [done]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Animate
+  useEffect(() => {
+    if (done) return;
+    let raf = 0;
+    const tick = () => {
+      setBubbles(prev => prev.filter(b => !b.popping).map(b => {
+        let nx = b.x + b.vx, ny = b.y + b.vy;
+        let nvx = b.vx, nvy = b.vy;
+        if (nx < b.r || nx > W - b.r) { nvx = -nvx; nx = b.x; }
+        if (ny < b.r || ny > H - b.r) { nvy = -nvy; ny = b.y; }
+        return { ...b, x: nx, y: ny, vx: nvx, vy: nvy };
+      }));
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [done]);
+
+  // Rotate target every 6s
+  useEffect(() => {
+    if (done) return;
+    const rot = setInterval(() => {
+      setTarget(EMOTIONS[Math.floor(Math.random() * EMOTIONS.length)]);
+      setStreak(0);
+    }, 6000);
+    return () => clearInterval(rot);
+  }, [done]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Flash debounce
+  useEffect(() => {
+    if (!flash) return;
+    const t = setTimeout(() => setFlash(null), 180);
+    return () => clearTimeout(t);
+  }, [flash]);
+
+  // Countdown
+  useEffect(() => {
+    if (done) return;
+    if (time <= 0) { setDone(true); return; }
+    const t = setTimeout(() => setTime(s => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [time, done]);
+
+  const pop = (b: Bubble) => {
+    if (b.popping) return;
+    if (b.emotion.name === target.name) {
+      setScore(s => s + 1 + streak); // streak bonus
+      setStreak(s => s + 1);
+      setFlash("good");
+    } else {
+      setScore(s => Math.max(0, s - 1));
+      setStreak(0);
+      setMisses(m => m + 1);
+      setFlash("bad");
+    }
+    setBubbles(prev => prev.map(x => x.id === b.id ? { ...x, popping: true } : x));
+  };
+
+  if (done) {
+    return (
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center space-y-4 py-4">
+        <div className="text-6xl">🎨</div>
+        <p className="text-xl font-bold text-slate-900 dark:text-white">Time's up!</p>
+        <div className="grid grid-cols-2 gap-3 max-w-xs mx-auto text-sm">
+          <div className="rounded-xl bg-emerald-50 dark:bg-emerald-900/20 p-3">
+            <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">{score}</div>
+            <div className="text-xs text-slate-500">Points</div>
+          </div>
+          <div className="rounded-xl bg-rose-50 dark:bg-rose-900/20 p-3">
+            <div className="text-2xl font-bold text-rose-700 dark:text-rose-300">{misses}</div>
+            <div className="text-xs text-slate-500">Wrong taps</div>
+          </div>
+        </div>
+        <Button onClick={() => onComplete(score, Math.max(20, Math.round(duration * 0.9)))}
+          className="bg-gradient-to-r from-pink-500 to-violet-600 text-white">
+          Continue <ArrowRight className="w-4 h-4 ml-1" />
+        </Button>
+      </motion.div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="text-sm">
+          <span className="text-slate-500">Tap all the </span>
+          <span className="px-2 py-0.5 rounded-full text-white font-bold text-sm" style={{ background: target.color }}>
+            {target.emoji} {target.name}
+          </span>
+          <span className="text-slate-500"> bubbles</span>
+        </div>
+        <span className="font-mono text-slate-500 text-sm">⏱ {time}s</span>
+      </div>
+
+      <div className="flex items-center justify-between text-xs">
+        <span className="text-violet-600 font-bold">⭐ {score}</span>
+        {streak > 1 && <span className="text-amber-500 font-bold animate-pulse">🔥 {streak} streak</span>}
+        <span className="text-rose-400">✗ {misses}</span>
+      </div>
+
+      <div className={`relative w-full overflow-hidden rounded-2xl border-2 transition-colors ${
+        flash === "good" ? "border-emerald-400 bg-emerald-50 dark:bg-emerald-900/20"
+        : flash === "bad"  ? "border-rose-400 bg-rose-50 dark:bg-rose-900/20"
+        : "border-slate-200 dark:border-slate-700 bg-gradient-to-br from-slate-50 to-violet-50 dark:from-slate-800 dark:to-slate-900"
+      }`}
+        style={{ aspectRatio: `${W} / ${H}`, touchAction: "manipulation" }}>
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-full" preserveAspectRatio="none">
+          {bubbles.map(b => (
+            <motion.g key={b.id}
+              initial={{ scale: 0 }}
+              animate={b.popping ? { scale: 0, opacity: 0 } : { scale: 1, opacity: 1 }}
+              transition={{ duration: 0.25 }}
+              style={{ cursor: "pointer" }}
+              onClick={() => pop(b)}
+              onTouchStart={(e) => { e.preventDefault(); pop(b); }}>
+              <circle cx={b.x} cy={b.y} r={b.r} fill={b.emotion.color} opacity={0.85} />
+              <circle cx={b.x - 8} cy={b.y - 10} r={6} fill="white" opacity={0.5} />
+              <text x={b.x} y={b.y + 8} fontSize="22" textAnchor="middle">{b.emotion.emoji}</text>
+            </motion.g>
+          ))}
+        </svg>
+      </div>
+
+      <p className="text-xs text-slate-500 text-center">
+        Tap only the bubbles matching the current feeling · the target changes every 6 seconds · build streaks for bonus points
+      </p>
+    </div>
+  );
+}
+
 // ─── Completion Screen ────────────────────────────────────────────────────────
 function CompletionScreen({ totalScore, maxScore, aiFeedback, gameTitle, onReset, onClose }: any) {
   const pct = Math.round((totalScore / maxScore) * 100);
@@ -829,6 +1142,8 @@ export default function GameModal({ game, userProgress, isOpen, onClose }: GameM
     sequence: { label: "Sequence Builder", icon: "📋", color: "bg-green-100 text-green-700" },
     "breathing-bubble": { label: "Breathing Bubble", icon: "🌬️", color: "bg-sky-100 text-sky-700" },
     "kindness-catcher": { label: "Kindness Catcher", icon: "🧺", color: "bg-pink-100 text-pink-700" },
+    "mood-mixer":       { label: "Mood Mixer",       icon: "🎨", color: "bg-fuchsia-100 text-fuchsia-700" },
+    "emotion-painter":  { label: "Emotion Painter",  icon: "🫧", color: "bg-violet-100 text-violet-700" },
   };
   const meta = GAME_TYPE_META[gameType] || GAME_TYPE_META.scenarios;
 
@@ -876,6 +1191,12 @@ export default function GameModal({ game, userProgress, isOpen, onClose }: GameM
               )}
               {gameType === "kindness-catcher" && (
                 <KindnessCatcherGame duration={content.duration} onComplete={handleComplete} />
+              )}
+              {gameType === "mood-mixer" && (
+                <MoodMixerGame rounds={content.rounds} onComplete={handleComplete} />
+              )}
+              {gameType === "emotion-painter" && (
+                <EmotionPainterGame duration={content.duration} onComplete={handleComplete} />
               )}
             </motion.div>
           )}

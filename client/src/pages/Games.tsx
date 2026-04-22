@@ -128,6 +128,30 @@ export default function Games() {
       }
     },
     {
+      id: 8,
+      title: "Mood Mixer",
+      description: "Mix red, green and blue to paint the colour of a feeling. How close can you get to capturing joy, calm, hope?",
+      category: "empathy",
+      difficulty: "intermediate",
+      points: 75,
+      content: {
+        gameType: "mood-mixer",
+        rounds: 5,
+      }
+    },
+    {
+      id: 9,
+      title: "Emotion Painter",
+      description: "Floating emotion bubbles drift across the screen — pop only the ones matching the current feeling. Build streaks for bonus points.",
+      category: "social-skills",
+      difficulty: "beginner",
+      points: 90,
+      content: {
+        gameType: "emotion-painter",
+        duration: 30,
+      }
+    },
+    {
       id: 5,
       title: "Emotional Intelligence Explorer",
       description: "Learn to recognize and understand different emotions in yourself and others.",

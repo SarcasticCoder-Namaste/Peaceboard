@@ -644,6 +644,53 @@ const INTERACTIVE_GAMES = [
         { id: 6, text: "Agree on a specific plan and check in with each other later", correctPosition: 6 },
       ]
     }
+  },
+  {
+    title: "Breathing Bubble",
+    description: "Follow the bubble's rhythm with a 4-4-6 breathing pattern. Calm your body and mind in under two minutes.",
+    category: "empathy",
+    difficulty: "beginner",
+    points: 60,
+    content: {
+      gameType: "breathing-bubble",
+      cycles: 5,
+      inhaleSec: 4,
+      holdSec: 4,
+      exhaleSec: 6,
+    }
+  },
+  {
+    title: "Kindness Catcher",
+    description: "Catch falling acts of kindness — hugs, gifts, smiles — and dodge the meanness. Drag the basket or use the arrow keys!",
+    category: "kindness",
+    difficulty: "beginner",
+    points: 80,
+    content: {
+      gameType: "kindness-catcher",
+      duration: 30,
+    }
+  },
+  {
+    title: "Mood Mixer",
+    description: "Mix red, green and blue to paint the colour of a feeling. How close can you get to capturing joy, calm, hope and more?",
+    category: "empathy",
+    difficulty: "intermediate",
+    points: 75,
+    content: {
+      gameType: "mood-mixer",
+      rounds: 5,
+    }
+  },
+  {
+    title: "Emotion Painter",
+    description: "Floating emotion bubbles drift across the screen — pop only the ones matching the current feeling. Build streaks for bonus points!",
+    category: "social-skills",
+    difficulty: "beginner",
+    points: 90,
+    content: {
+      gameType: "emotion-painter",
+      duration: 30,
+    }
   }
 ];
 
