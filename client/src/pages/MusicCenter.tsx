@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import MusicPlayer from "@/components/music/MusicPlayer";
+import FrequencyPlayer from "@/components/music/FrequencyPlayer";
 import { Music, Heart, Leaf, Brain, Sparkles, Clock, Timer, Moon, Sun, Flame, Play } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest } from "@/lib/queryClient";
@@ -345,6 +346,11 @@ export default function MusicCenter() {
               onTrackChange={selectTrack}
               tracks={filtered.length ? filtered : ALL_TRACKS}
             />
+          </motion.div>
+
+          {/* Healing frequencies generator */}
+          <motion.div initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.2 }} className="mt-6">
+            <FrequencyPlayer />
           </motion.div>
         </div>
       </div>

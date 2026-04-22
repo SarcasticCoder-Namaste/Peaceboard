@@ -101,6 +101,33 @@ export default function Games() {
       }
     },
     {
+      id: 6,
+      title: "Breathing Bubble",
+      description: "Follow the bubble's rhythm with a 4-4-6 breathing pattern. Calm your body in under two minutes.",
+      category: "empathy",
+      difficulty: "beginner",
+      points: 50,
+      content: {
+        gameType: "breathing-bubble",
+        cycles: 5,
+        inhaleSec: 4,
+        holdSec: 4,
+        exhaleSec: 6,
+      }
+    },
+    {
+      id: 7,
+      title: "Kindness Catcher",
+      description: "Catch the falling kindness — hugs, gifts, smiles — and dodge the meanness. Drag the basket or use arrow keys.",
+      category: "kindness",
+      difficulty: "beginner",
+      points: 80,
+      content: {
+        gameType: "kindness-catcher",
+        duration: 30,
+      }
+    },
+    {
       id: 5,
       title: "Emotional Intelligence Explorer",
       description: "Learn to recognize and understand different emotions in yourself and others.",

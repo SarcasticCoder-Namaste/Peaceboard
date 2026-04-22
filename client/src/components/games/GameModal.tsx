@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
@@ -406,6 +406,323 @@ function SequenceGame({ situation, steps, onComplete }: { situation: string; ste
   );
 }
 
+// ─── Breathing Bubble Game ───────────────────────────────────────────────────
+// Player follows a 4-7-8 (or custom) breathing pattern by holding the bubble
+// during INHALE and HOLD phases. Scored on how steady their timing is.
+function BreathingBubbleGame({
+  cycles = 5, inhaleSec = 4, holdSec = 4, exhaleSec = 6, onComplete,
+}: { cycles?: number; inhaleSec?: number; holdSec?: number; exhaleSec?: number; onComplete: (score: number, total: number) => void }) {
+  const phases = [
+    { name: "Inhale", dur: inhaleSec, hold: true,  color: "from-sky-400 to-blue-600",      hint: "Hold the bubble · breathe in slowly through your nose" },
+    { name: "Hold",   dur: holdSec,   hold: true,  color: "from-violet-400 to-purple-600", hint: "Keep holding · stay still · count silently" },
+    { name: "Exhale", dur: exhaleSec, hold: false, color: "from-emerald-400 to-teal-600",  hint: "Release the bubble · breathe out slowly through your mouth" },
+  ] as const;
+
+  const [cycle, setCycle]       = useState(0);
+  const [phaseIdx, setPhaseIdx] = useState(0);
+  const [t, setT]               = useState(0);          // ms inside this phase
+  const [holding, setHolding]   = useState(false);
+  const [scoreAcc, setScoreAcc] = useState(0);          // % of correct holding accumulated
+  const [done, setDone]         = useState(false);
+  const startRef = useRef<number>(performance.now());
+  const correctMsRef = useRef(0);
+  const totalMsRef   = useRef(0);
+
+  const phase = phases[phaseIdx];
+  const phaseMs = phase.dur * 1000;
+
+  useEffect(() => {
+    if (done) return;
+    let raf = 0;
+    const tick = () => {
+      const now = performance.now();
+      const elapsed = now - startRef.current;
+      setT(elapsed);
+
+      // Score: did the user's hold-state match what the phase wanted?
+      // Sample at ~60fps via raf delta — count milliseconds correct.
+      const dt = 16;
+      totalMsRef.current += dt;
+      if (holding === phase.hold) correctMsRef.current += dt;
+
+      if (elapsed >= phaseMs) {
+        startRef.current = now;
+        if (phaseIdx === phases.length - 1) {
+          // End of cycle
+          if (cycle + 1 >= cycles) {
+            const pct = totalMsRef.current > 0 ? (correctMsRef.current / totalMsRef.current) : 0;
+            const finalScore = Math.round(pct * cycles * 10);
+            setScoreAcc(finalScore);
+            setDone(true);
+            return;
+          }
+          setCycle(c => c + 1);
+          setPhaseIdx(0);
+        } else {
+          setPhaseIdx(i => i + 1);
+        }
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [phaseIdx, cycle, holding, done]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Spacebar = hold
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => { if (e.code === "Space") { e.preventDefault(); setHolding(true); } };
+    const up   = (e: KeyboardEvent) => { if (e.code === "Space") { e.preventDefault(); setHolding(false); } };
+    window.addEventListener("keydown", down);
+    window.addEventListener("keyup",   up);
+    return () => { window.removeEventListener("keydown", down); window.removeEventListener("keyup", up); };
+  }, []);
+
+  const phaseProgress = Math.min(1, t / phaseMs);
+  // Bubble scale: grows during inhale, stays during hold, shrinks during exhale
+  const targetScale = phase.name === "Inhale" ? 0.4 + phaseProgress * 0.6
+                    : phase.name === "Hold"   ? 1
+                    : 1 - phaseProgress * 0.6;
+  const matchOK = holding === phase.hold;
+
+  if (done) {
+    return (
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center space-y-4 py-6">
+        <div className="text-6xl">🌬️</div>
+        <p className="text-xl font-bold text-slate-900 dark:text-white">Beautifully done</p>
+        <p className="text-sm text-slate-500">You completed {cycles} breathing cycles.</p>
+        <Button onClick={() => onComplete(scoreAcc, cycles * 10)} className="bg-gradient-to-r from-sky-500 to-blue-600 text-white">
+          Continue <ArrowRight className="w-4 h-4 ml-1" />
+        </Button>
+      </motion.div>
+    );
+  }
+
+  return (
+    <div className="space-y-5 select-none">
+      <div className="flex justify-between text-sm">
+        <span className="text-slate-500">Cycle {cycle + 1} of {cycles}</span>
+        <span className={`font-medium ${matchOK ? "text-emerald-600" : "text-amber-600"}`}>
+          {matchOK ? "✓ in sync" : phase.hold ? "hold the bubble" : "release the bubble"}
+        </span>
+      </div>
+
+      <div className="relative h-72 rounded-3xl bg-gradient-to-br from-slate-100 to-blue-50 dark:from-slate-800 dark:to-slate-900 border border-slate-200 dark:border-slate-700 overflow-hidden flex items-center justify-center">
+        {/* Outer ring shows phase progress */}
+        <svg className="absolute w-56 h-56" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="46" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-slate-300 dark:text-slate-700" />
+          <circle cx="50" cy="50" r="46" fill="none" stroke="currentColor" strokeWidth="2.5"
+            className={matchOK ? "text-emerald-500" : "text-amber-500"}
+            strokeDasharray={`${phaseProgress * 289} 289`}
+            transform="rotate(-90 50 50)"
+            strokeLinecap="round" />
+        </svg>
+
+        {/* Bubble */}
+        <motion.button
+          onMouseDown={() => setHolding(true)}
+          onMouseUp={() => setHolding(false)}
+          onMouseLeave={() => setHolding(false)}
+          onTouchStart={(e) => { e.preventDefault(); setHolding(true); }}
+          onTouchEnd={(e) => { e.preventDefault(); setHolding(false); }}
+          onTouchCancel={(e) => { e.preventDefault(); setHolding(false); }}
+          onPointerCancel={() => setHolding(false)}
+          onBlur={() => setHolding(false)}
+          className={`relative w-40 h-40 rounded-full bg-gradient-to-br ${phase.color} text-white font-bold flex items-center justify-center shadow-2xl`}
+          animate={{ scale: targetScale, opacity: holding ? 1 : 0.85 }}
+          transition={{ duration: 0.25, ease: "easeOut" }}
+        >
+          <div className="text-center pointer-events-none">
+            <div className="text-2xl">{phase.name}</div>
+            <div className="text-xs opacity-80 mt-1">{Math.max(0, Math.ceil(phase.dur - t / 1000))}s</div>
+          </div>
+        </motion.button>
+      </div>
+
+      <div className="text-center space-y-1.5">
+        <p className="text-sm font-semibold text-slate-900 dark:text-white">{phase.hint}</p>
+        <p className="text-xs text-slate-500">Hold the bubble (or press <kbd className="px-1.5 py-0.5 bg-slate-200 dark:bg-slate-700 rounded text-[10px]">Space</kbd>) during <strong>Inhale</strong> and <strong>Hold</strong>; release during <strong>Exhale</strong>.</p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Kindness Catcher Game ───────────────────────────────────────────────────
+// Falling kindness emojis must be caught with a basket; mean items must be
+// dodged. Drag with mouse/touch or use ←/→ arrow keys.
+function KindnessCatcherGame({ duration = 30, onComplete }: { duration?: number; onComplete: (score: number, total: number) => void }) {
+  const KIND = ["🤗", "🌷", "💌", "🎁", "🍪", "⭐", "💖", "🌈", "👏"];
+  const MEAN = ["💢", "👎", "💔", "🌧️", "🗯️"];
+  const W = 360, H = 380, BASKET_W = 64;
+
+  type Drop = { id: number; x: number; y: number; emoji: string; kind: boolean; speed: number };
+  const [drops, setDrops] = useState<Drop[]>([]);
+  const [basketX, setBasketX] = useState(W / 2 - BASKET_W / 2);
+  const [score, setScore]   = useState(0);
+  const [missed, setMissed] = useState(0);
+  const [stung, setStung]   = useState(0);
+  const [time, setTime]     = useState(duration);
+  const [done, setDone]     = useState(false);
+  const [flash, setFlash]   = useState<"good" | "bad" | null>(null);
+  const idRef = useRef(0);
+  const stageRef = useRef<HTMLDivElement | null>(null);
+
+  // Spawn loop
+  useEffect(() => {
+    if (done) return;
+    const spawn = setInterval(() => {
+      const isKind = Math.random() < 0.78;
+      const pool = isKind ? KIND : MEAN;
+      setDrops(d => [...d, {
+        id: idRef.current++,
+        x: 20 + Math.random() * (W - 60),
+        y: -30,
+        emoji: pool[Math.floor(Math.random() * pool.length)],
+        kind: isKind,
+        speed: 1.2 + Math.random() * 1.6,
+      }]);
+    }, 650);
+    return () => clearInterval(spawn);
+  }, [done]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Animation + collision loop
+  useEffect(() => {
+    if (done) return;
+    let raf = 0;
+    const tick = () => {
+      setDrops(prev => {
+        const next: Drop[] = [];
+        let dScore = 0, dMissed = 0, dStung = 0;
+        for (const d of prev) {
+          const ny = d.y + d.speed;
+          // Collision check at basket level
+          if (ny >= H - 60 && ny <= H - 30) {
+            const overlap = d.x + 18 > basketX && d.x < basketX + BASKET_W;
+            if (overlap) {
+              if (d.kind) { dScore++;  setFlash("good"); }
+              else        { dStung++; setFlash("bad"); }
+              continue;
+            }
+          }
+          if (ny > H) {
+            if (d.kind) dMissed++;
+            continue;
+          }
+          next.push({ ...d, y: ny });
+        }
+        if (dScore)  setScore(s => s + dScore);
+        if (dMissed) setMissed(m => m + dMissed);
+        if (dStung)  setStung(s => s + dStung);
+        return next;
+      });
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [basketX, done]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Flash debounce
+  useEffect(() => {
+    if (!flash) return;
+    const t = setTimeout(() => setFlash(null), 180);
+    return () => clearTimeout(t);
+  }, [flash]);
+
+  // Countdown
+  useEffect(() => {
+    if (done) return;
+    if (time <= 0) { setDone(true); return; }
+    const t = setTimeout(() => setTime(s => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [time, done]);
+
+  // Keyboard control
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.code === "ArrowLeft")  setBasketX(x => Math.max(0, x - 28));
+      if (e.code === "ArrowRight") setBasketX(x => Math.min(W - BASKET_W, x + 28));
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  // Mouse / touch control
+  const move = (clientX: number) => {
+    const rect = stageRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const rel = ((clientX - rect.left) / rect.width) * W;
+    setBasketX(Math.max(0, Math.min(W - BASKET_W, rel - BASKET_W / 2)));
+  };
+
+  if (done) {
+    const max = Math.max(score + missed + stung, 1);
+    const acc = Math.round((score / max) * 100);
+    const finalScore = Math.max(0, score * 2 - stung);
+    return (
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center space-y-4 py-4">
+        <div className="text-6xl">🧺</div>
+        <p className="text-xl font-bold text-slate-900 dark:text-white">Time's up!</p>
+        <div className="grid grid-cols-3 gap-3 max-w-sm mx-auto text-sm">
+          <div className="rounded-xl bg-emerald-50 dark:bg-emerald-900/20 p-3">
+            <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">{score}</div>
+            <div className="text-xs text-slate-500">Caught</div>
+          </div>
+          <div className="rounded-xl bg-rose-50 dark:bg-rose-900/20 p-3">
+            <div className="text-2xl font-bold text-rose-700 dark:text-rose-300">{stung}</div>
+            <div className="text-xs text-slate-500">Stung</div>
+          </div>
+          <div className="rounded-xl bg-slate-100 dark:bg-slate-800 p-3">
+            <div className="text-2xl font-bold text-slate-700 dark:text-slate-300">{acc}%</div>
+            <div className="text-xs text-slate-500">Accuracy</div>
+          </div>
+        </div>
+        <Button onClick={() => onComplete(finalScore, Math.max(20, Math.round(duration * 0.8)))}
+          className="bg-gradient-to-r from-pink-500 to-rose-600 text-white">
+          Continue <ArrowRight className="w-4 h-4 ml-1" />
+        </Button>
+      </motion.div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between text-sm">
+        <span className="text-emerald-600 font-bold">💖 {score}</span>
+        <span className="font-mono text-slate-500">⏱ {time}s</span>
+        <span className="text-rose-500 font-bold">💢 {stung}</span>
+      </div>
+
+      <div
+        ref={stageRef}
+        onMouseMove={(e) => move(e.clientX)}
+        onTouchMove={(e) => { if (e.touches[0]) { e.preventDefault(); move(e.touches[0].clientX); } }}
+        className={`relative w-full overflow-hidden rounded-2xl border-2 transition-colors ${
+          flash === "good" ? "border-emerald-400 bg-emerald-50 dark:bg-emerald-900/20"
+          : flash === "bad"  ? "border-rose-400 bg-rose-50 dark:bg-rose-900/20"
+          : "border-slate-200 dark:border-slate-700 bg-gradient-to-b from-sky-50 to-violet-50 dark:from-slate-800 dark:to-slate-900"
+        }`}
+        style={{ aspectRatio: `${W} / ${H}`, touchAction: "none", cursor: "none" }}
+      >
+        <div className="absolute inset-0" style={{ width: "100%", height: "100%" }}>
+          <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-full" preserveAspectRatio="none">
+            {drops.map(d => (
+              <text key={d.id} x={d.x} y={d.y} fontSize="28" textAnchor="middle">{d.emoji}</text>
+            ))}
+            {/* Basket */}
+            <g transform={`translate(${basketX} ${H - 50})`}>
+              <rect x="0" y="6" width={BASKET_W} height="28" rx="6" fill="#a16207" />
+              <rect x="0" y="0" width={BASKET_W} height="10" rx="4" fill="#facc15" />
+            </g>
+          </svg>
+        </div>
+      </div>
+
+      <p className="text-xs text-slate-500 text-center">
+        Catch kindness 💖 · dodge meanness 💢 · drag the basket or use <kbd className="px-1.5 py-0.5 bg-slate-200 dark:bg-slate-700 rounded text-[10px]">←</kbd> <kbd className="px-1.5 py-0.5 bg-slate-200 dark:bg-slate-700 rounded text-[10px]">→</kbd>
+      </p>
+    </div>
+  );
+}
+
 // ─── Completion Screen ────────────────────────────────────────────────────────
 function CompletionScreen({ totalScore, maxScore, aiFeedback, gameTitle, onReset, onClose }: any) {
   const pct = Math.round((totalScore / maxScore) * 100);
@@ -510,6 +827,8 @@ export default function GameModal({ game, userProgress, isOpen, onClose }: GameM
     "memory-match": { label: "Memory Match", icon: "🧠", color: "bg-purple-100 text-purple-700" },
     "speed-round": { label: "Speed Round", icon: "⚡", color: "bg-orange-100 text-orange-700" },
     sequence: { label: "Sequence Builder", icon: "📋", color: "bg-green-100 text-green-700" },
+    "breathing-bubble": { label: "Breathing Bubble", icon: "🌬️", color: "bg-sky-100 text-sky-700" },
+    "kindness-catcher": { label: "Kindness Catcher", icon: "🧺", color: "bg-pink-100 text-pink-700" },
   };
   const meta = GAME_TYPE_META[gameType] || GAME_TYPE_META.scenarios;
 
@@ -546,6 +865,17 @@ export default function GameModal({ game, userProgress, isOpen, onClose }: GameM
               )}
               {gameType === "sequence" && content.steps && (
                 <SequenceGame situation={content.situation} steps={content.steps} onComplete={handleComplete} />
+              )}
+              {gameType === "breathing-bubble" && (
+                <BreathingBubbleGame
+                  cycles={content.cycles}
+                  inhaleSec={content.inhaleSec}
+                  holdSec={content.holdSec}
+                  exhaleSec={content.exhaleSec}
+                  onComplete={handleComplete} />
+              )}
+              {gameType === "kindness-catcher" && (
+                <KindnessCatcherGame duration={content.duration} onComplete={handleComplete} />
               )}
             </motion.div>
           )}
