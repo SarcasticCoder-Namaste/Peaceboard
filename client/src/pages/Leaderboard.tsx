@@ -22,12 +22,12 @@ export default function Leaderboard() {
     },
   });
 
-  const { data: userRankData } = useQuery({
+  const { data: userRankData } = useQuery<{ rank?: number }>({
     queryKey: [`/api/leaderboard/rank/${user?.id}`],
     enabled: !!user,
   });
 
-  const { data: userAchievements = [] } = useQuery({
+  const { data: userAchievements = [] } = useQuery<any[]>({
     queryKey: [`/api/achievements/${user?.id}`],
     enabled: !!user,
   });

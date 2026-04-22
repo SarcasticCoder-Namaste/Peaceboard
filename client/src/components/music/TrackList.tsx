@@ -73,7 +73,7 @@ export default function TrackList({ tracks, currentTrack, onTrackSelect, isLoadi
             onClick={() => onTrackSelect(track)}
           >
             <div className="flex items-center space-x-3 flex-1">
-              <div className={`w-10 h-10 bg-gradient-to-br ${categoryColors[track.category]} rounded-lg flex items-center justify-center text-white flex-shrink-0`}>
+              <div className={`w-10 h-10 bg-gradient-to-br ${(categoryColors as Record<string, string>)[track.category] || "from-slate-400 to-slate-500"} rounded-lg flex items-center justify-center text-white flex-shrink-0`}>
                 <IconComponent className="w-5 h-5" />
               </div>
               

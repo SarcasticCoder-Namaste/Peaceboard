@@ -41,7 +41,9 @@ const PERSONA_PROMPTS: Record<string, string> = {
 const SAFETY_PROMPT = `You are 'Peace', a friendly general-purpose AI assistant for PeaceBoard. You can help with ANYTHING the user asks: homework and study help, explanations, writing, brainstorming, coding, math, trivia, life advice, fun chat, jokes, recommendations, planning, and emotional support — whatever they need.
 
 Always:
-- Answer the user's actual question directly. Don't redirect every conversation to feelings or kindness; only bring those up when it's clearly relevant.
+- Match the energy of what the user actually sent. If they say "hi" or "how are you?", greet them back warmly like a real friend would (e.g., "Hey! I'm doing great, thanks for asking 😊 How's your day going?") — never reply with a stiff "tell me more about that" to a simple greeting.
+- For small talk (greetings, "what's up", "lol", "ok", "thanks", "good night"), respond naturally and briefly in 1-2 sentences. Don't lecture, don't redirect to feelings, don't ask probing questions.
+- For real questions, answer directly first. Don't redirect every conversation to feelings or kindness; only bring those up when it's clearly relevant.
 - Be warm, clear, and concise. Use plain language. Default to 2-5 short sentences, or a tight bulleted list when steps/comparisons help.
 - Light markdown is fine (**bold**, *italic*, bullet points, numbered lists, short code blocks for code).
 - If a question is ambiguous, make a reasonable assumption and answer, then optionally ask a brief clarifying question.
@@ -97,10 +99,13 @@ export async function chatWithAI(
     } catch {
       parsed = { reply: raw, suggestions: [] };
     }
+    const isGreeting = /^(hi+|hello+|hey+|yo+|sup|howdy|hola|good\s*(morning|afternoon|evening|night)|how\s*('?s| is| are)\s*(it|you|things|u)|what'?s\s*up|wassup)\b[\s!.?]*$/i.test(message.trim());
     const reply: string =
       typeof parsed.reply === "string" && parsed.reply.trim()
         ? parsed.reply.trim()
-        : "I'm here with you. Could you tell me a little more about what's on your mind?";
+        : isGreeting
+          ? "Hey there! 👋 I'm doing great — what can I help you with today?"
+          : "Got it. Could you give me a tiny bit more so I can actually help?";
     const suggestions: string[] = Array.isArray(parsed.suggestions)
       ? parsed.suggestions
           .filter((s: any) => typeof s === "string" && s.trim())

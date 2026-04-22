@@ -122,17 +122,17 @@ export default function Games() {
     }
   ];
 
-  const { data: gamesData = [], isLoading } = useQuery({
+  const { data: gamesData = [], isLoading } = useQuery<any[]>({
     queryKey: ["/api/games"],
   });
 
-  const { data: userProgress = [] } = useQuery({
+  const { data: userProgress = [] } = useQuery<any[]>({
     queryKey: [`/api/progress/${user?.id}`],
     enabled: !!user,
   });
 
   // Use mock games if database is unavailable
-  const games = gamesData.length > 0 ? gamesData : mockGames;
+  const games: any[] = gamesData.length > 0 ? gamesData : mockGames;
 
   // Filter games
   const filteredGames = games.filter((game: any) => {

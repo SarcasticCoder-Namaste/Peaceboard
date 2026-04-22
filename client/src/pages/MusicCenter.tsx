@@ -282,10 +282,11 @@ export default function MusicCenter() {
     localStorage.setItem("pb-favs", JSON.stringify(ids));
   }, []);
 
-  const selectTrack = (track: typeof ALL_TRACKS[0]) => {
-    setCurrentTrack(track);
-    setRecentlyPlayed(p => [track, ...p.filter(t => t.id !== track.id)].slice(0, 6));
-    try { localStorage.setItem("pb-last-track", String(track.id)); } catch {}
+  const selectTrack = (track: { id: any; title: string; category: string; duration: number; audioUrl: string; thumbnailUrl?: string; description?: string; mood?: string }) => {
+    const t = track as typeof ALL_TRACKS[0];
+    setCurrentTrack(t);
+    setRecentlyPlayed(p => [t, ...p.filter(x => x.id !== t.id)].slice(0, 6));
+    try { localStorage.setItem("pb-last-track", String(t.id)); } catch {}
     // Persist to backend (real users only); failures are silent
     if (user && !user.id.startsWith("guest_")) {
       apiRequest("POST", "/api/music/history", {

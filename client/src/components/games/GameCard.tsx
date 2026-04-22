@@ -61,7 +61,7 @@ export default function GameCard({ game, viewMode, userProgress, onPlay, delay =
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4 flex-1">
-                <div className={`w-16 h-16 bg-gradient-to-br ${categoryColors[game.category]} rounded-xl flex items-center justify-center text-white group-hover:scale-110 transition-transform duration-300`}>
+                <div className={`w-16 h-16 bg-gradient-to-br ${(categoryColors as Record<string, string>)[game.category] || "from-slate-400 to-slate-500"} rounded-xl flex items-center justify-center text-white group-hover:scale-110 transition-transform duration-300`}>
                   <IconComponent className="w-8 h-8" />
                 </div>
                 
@@ -80,7 +80,7 @@ export default function GameCard({ game, viewMode, userProgress, onPlay, delay =
                   </p>
                   
                   <div className="flex items-center flex-wrap gap-2">
-                    <Badge className={difficultyColors[game.difficulty]}>
+                    <Badge className={(difficultyColors as Record<string, string>)[game.difficulty] || ""}>
                       {game.difficulty}
                     </Badge>
                     <Badge variant="outline">
@@ -152,7 +152,7 @@ export default function GameCard({ game, viewMode, userProgress, onPlay, delay =
       <Card className="bg-white dark:bg-slate-800 shadow-lg hover:shadow-xl transition-all duration-300 border border-slate-200 dark:border-slate-700 group cursor-pointer h-full">
         <CardContent className="p-6 h-full flex flex-col">
           <div className="flex items-center justify-between mb-4">
-            <div className={`w-12 h-12 bg-gradient-to-br ${categoryColors[game.category]} rounded-xl flex items-center justify-center text-white group-hover:scale-110 transition-transform duration-300`}>
+            <div className={`w-12 h-12 bg-gradient-to-br ${(categoryColors as Record<string, string>)[game.category] || "from-slate-400 to-slate-500"} rounded-xl flex items-center justify-center text-white group-hover:scale-110 transition-transform duration-300`}>
               <IconComponent className="w-6 h-6" />
             </div>
             
@@ -192,7 +192,7 @@ export default function GameCard({ game, viewMode, userProgress, onPlay, delay =
           </div>
           
           <div className="flex flex-wrap gap-1.5 mb-4">
-            <Badge className={difficultyColors[game.difficulty]} variant="secondary">
+            <Badge className={(difficultyColors as Record<string, string>)[game.difficulty] || ""} variant="secondary">
               {game.difficulty}
             </Badge>
             <Badge variant="outline" className="text-xs">

@@ -18,11 +18,16 @@ import {
 } from "lucide-react";
 
 export default function Analytics() {
-  const { data: analytics } = useQuery({
+  const { data: analytics } = useQuery<{
+    activeStudents?: number;
+    gamesCompleted?: number;
+    avgSessionTime?: number;
+    achievementsEarned?: number;
+  }>({
     queryKey: ["/api/analytics"],
   });
 
-  const { data: leaderboard = [] } = useQuery({
+  const { data: leaderboard = [] } = useQuery<any[]>({
     queryKey: ["/api/leaderboard", "weekly"],
   });
 
