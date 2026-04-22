@@ -15,6 +15,7 @@ export interface DiaryEntry {
   isSecret: boolean; // hide preview on locked screen
   pinned?: boolean;
   tags?: string[];
+  photo?: string; // optional data-URL image attachment
   createdAt: number;
   updatedAt: number;
 }
@@ -96,6 +97,7 @@ export function saveEntry(userId: string, entry: Omit<DiaryEntry, "id" | "create
     isSecret: entry.isSecret,
     pinned: entry.pinned ?? false,
     tags: cleanTags,
+    photo: entry.photo,
     createdAt: now,
     updatedAt: now,
   };
@@ -184,6 +186,29 @@ export function getMoodByDate(userId: string): Record<string, number> {
     out[k] = e.mood;
   }
   return out;
+}
+
+// Past entries that share today's calendar day (MM-DD) — "On This Day" memories.
+// Returns at most 6, newest-first, excluding any entries from today itself.
+export function getOnThisDay(userId: string): DiaryEntry[] {
+  const all = listEntries(userId);
+  const now = new Date();
+  const mm = now.getMonth(), dd = now.getDate();
+  const todayKey = now.toISOString().slice(0, 10);
+  return all
+    .filter(e => {
+      const d = new Date(e.createdAt);
+      if (d.toISOString().slice(0, 10) === todayKey) return false;
+      return d.getMonth() === mm && d.getDate() === dd;
+    })
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .slice(0, 6);
+}
+
+// Estimated reading time in minutes (~200 wpm), minimum 1.
+export function readingTimeMin(text: string): number {
+  const words = (text || "").trim().split(/\s+/).filter(Boolean).length;
+  return Math.max(1, Math.round(words / 200));
 }
 
 export function listAllTags(userId: string): { tag: string; count: number }[] {

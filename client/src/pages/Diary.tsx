@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 import {
   Lock, Plus, Search, Trash2, Pencil, Eye, EyeOff,
   Download, KeyRound, X, BookOpen, Save, Pin, Sparkles,
   FileJson, FileText, Hash, ChevronDown, ChevronUp, Tag, CheckCircle2,
-  Calendar, TrendingUp, Quote,
+  Calendar, Quote, Mic, MicOff, Image as ImageIcon, Clock,
+  Heart, Wand2, ShieldCheck, Loader2, History,
 } from "lucide-react";
 import {
   DiaryEntry, DiaryType, TYPE_META, MOOD_EMOJIS,
@@ -14,6 +17,7 @@ import {
   hasPin, setPin, clearPin, verifyPin, isUnlocked, lock,
   togglePin, getDiaryStats, getMoodByDate, listAllTags,
   getDailyPrompt, saveDraft, loadDraft, clearDraft,
+  getOnThisDay, readingTimeMin,
 } from "@/lib/diaryStore";
 import { pingStreak } from "@/lib/streak";
 import { pushNotification } from "@/lib/notifications";
@@ -71,6 +75,9 @@ export default function DiaryPage() {
   const moodByDate = useMemo(() => getMoodByDate(userId), [entries, userId]);
   const allTags = useMemo(() => listAllTags(userId), [entries, userId]);
   const dailyPrompt = useMemo(() => getDailyPrompt(), []);
+  const memories = useMemo(() => getOnThisDay(userId), [entries, userId]);
+
+  const [reflectionOpen, setReflectionOpen] = useState(false);
 
   const tryUnlock = async () => {
     setPinError("");
@@ -142,15 +149,7 @@ export default function DiaryPage() {
   };
 
   if (!isAuthenticated) {
-    return (
-      <div className="max-w-md mx-auto px-6 py-24 text-center">
-        <BookOpen className="w-14 h-14 text-primary mx-auto mb-4" />
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Your Diary</h1>
-        <p className="mt-2 text-slate-600 dark:text-slate-300">
-          Sign in to write private journal entries — stored only on this device, optionally PIN-protected, just for you.
-        </p>
-      </div>
-    );
+    return <DiaryLanding />;
   }
 
   // ── Locked screen ──────────────────────────────────────────────────────────
@@ -233,6 +232,15 @@ export default function DiaryPage() {
               >
                 <Sparkles className="w-4 h-4" /> Write to today's prompt
               </button>
+              {entries.length >= 3 && (
+                <button
+                  onClick={() => setReflectionOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/15 border border-white/30 text-white text-sm font-medium hover:bg-white/25"
+                  title="Get a kind reflection on your recent entries"
+                >
+                  <Wand2 className="w-4 h-4" /> Reflect on my week
+                </button>
+              )}
             </div>
           </div>
 
@@ -245,6 +253,46 @@ export default function DiaryPage() {
           </div>
         </div>
       </motion.div>
+
+      {/* ── On This Day memories ─────────────────────────────────────── */}
+      {memories.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+          className="mb-6 bg-gradient-to-br from-amber-50 to-rose-50 dark:from-amber-900/20 dark:to-rose-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl p-4 sm:p-5"
+        >
+          <div className="flex items-center gap-2 mb-3">
+            <History className="w-4 h-4 text-amber-600 dark:text-amber-300" />
+            <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100">On this day</h3>
+            <span className="text-xs text-slate-500">· memories from past {new Date().toLocaleDateString(undefined, { month: "long", day: "numeric" })}s</span>
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-1">
+            {memories.map(m => {
+              const meta = TYPE_META[m.type];
+              const days = Math.round((Date.now() - m.createdAt) / 86400_000);
+              const yrs = Math.floor(days / 365);
+              const ago = yrs >= 1 ? `${yrs} year${yrs > 1 ? "s" : ""} ago` : `${days} days ago`;
+              return (
+                <button
+                  key={m.id}
+                  onClick={() => { setEditing(m); setEditorOpen(true); }}
+                  className="shrink-0 w-64 text-left bg-white dark:bg-slate-900 rounded-xl border border-amber-200 dark:border-amber-800 p-3 hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-center justify-between text-[11px] text-slate-500">
+                    <span className="inline-flex items-center gap-1 font-medium">{meta.emoji} {meta.label}</span>
+                    <span className="text-amber-600 dark:text-amber-300 font-semibold">{ago}</span>
+                  </div>
+                  <div className="mt-1 font-semibold text-slate-900 dark:text-white text-sm truncate">
+                    {m.title || "(untitled)"}
+                  </div>
+                  <div className="mt-1 text-xs text-slate-600 dark:text-slate-300 line-clamp-2 whitespace-pre-wrap">
+                    {m.isSecret ? "🔒 Hidden secret" : m.body}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </motion.div>
+      )}
 
       {/* ── Mood heatmap (last 90 days) ───────────────────────────────── */}
       {entries.length > 0 && (
@@ -417,6 +465,11 @@ export default function DiaryPage() {
                     <Pin className="w-3 h-3" /> Pinned
                   </div>
                 )}
+                {!hidden && e.photo && (
+                  <div className="relative">
+                    <img src={e.photo} alt="" loading="lazy" className="w-full h-32 object-cover" />
+                  </div>
+                )}
                 <div className="p-4">
                   <div className="flex items-center justify-between text-xs text-slate-500">
                     <span className="inline-flex items-center gap-1 font-medium">
@@ -430,6 +483,12 @@ export default function DiaryPage() {
                   <p className={`mt-1 text-sm text-slate-600 dark:text-slate-300 ${hidden ? "blur-sm select-none" : ""} line-clamp-3 whitespace-pre-wrap`}>
                     {hidden ? (e.body || "(no content)") : (search ? highlight(e.body || "(no content)", search) : (e.body || "(no content)"))}
                   </p>
+                  {!hidden && (
+                    <div className="mt-2 flex items-center gap-2 text-[10px] text-slate-400">
+                      <Clock className="w-3 h-3" /> {readingTimeMin(e.body)} min read
+                      {e.photo && <span className="inline-flex items-center gap-0.5"><ImageIcon className="w-3 h-3" /> photo</span>}
+                    </div>
+                  )}
                   {!hidden && (e.tags?.length ?? 0) > 0 && (
                     <div className="mt-2 flex flex-wrap gap-1">
                       {e.tags!.slice(0, 5).map(t => (
@@ -488,6 +547,13 @@ export default function DiaryPage() {
           saveEntry(userId, data);
           onAfterSave();
         }}
+      />
+
+      {/* AI Reflection modal */}
+      <ReflectionModal
+        open={reflectionOpen}
+        onClose={() => setReflectionOpen(false)}
+        entries={entries}
       />
 
       {/* Set-PIN modal */}
@@ -603,8 +669,13 @@ function EntryEditor({
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
   const [previewMd, setPreviewMd] = useState(false);
+  const [photo, setPhoto] = useState<string | undefined>(undefined);
+  const [listening, setListening] = useState(false);
   const [draftStatus, setDraftStatus] = useState<"" | "saving" | "saved">("");
   const draftTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recogRef = useRef<any>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
 
   // Init when opened
   useEffect(() => {
@@ -612,23 +683,94 @@ function EntryEditor({
     if (entry) {
       setType(entry.type); setTitle(entry.title); setBody(entry.body);
       setMood(entry.mood); setIsSecret(entry.isSecret);
-      setPinned(!!entry.pinned); setTags(entry.tags || []);
+      setPinned(!!entry.pinned); setTags(entry.tags || []); setPhoto(entry.photo);
     } else {
       // Try to restore unsent draft
       const d = loadDraft(userId);
       if (d && !d.editingId) {
         setType(d.type); setTitle(d.title); setBody(d.body);
         setMood(d.mood); setIsSecret(d.isSecret);
-        setPinned(false); setTags(d.tags || []);
+        setPinned(false); setTags(d.tags || []); setPhoto(undefined);
         setDraftStatus("saved");
       } else {
         setType("thought"); setTitle(""); setBody("");
-        setMood(3); setIsSecret(false); setPinned(false); setTags([]);
+        setMood(3); setIsSecret(false); setPinned(false); setTags([]); setPhoto(undefined);
         setDraftStatus("");
       }
     }
-    setTagInput(""); setPreviewMd(false);
+    setTagInput(""); setPreviewMd(false); setListening(false);
   }, [open, entry, userId]);
+
+  // Stop dictation when modal closes — and always on unmount.
+  useEffect(() => {
+    if (!open && recogRef.current) {
+      try { recogRef.current.stop(); } catch {}
+      recogRef.current = null;
+      setListening(false);
+    }
+    return () => {
+      if (recogRef.current) {
+        try { recogRef.current.onresult = null; } catch {}
+        try { recogRef.current.onend = null; } catch {}
+        try { recogRef.current.onerror = null; } catch {}
+        try { recogRef.current.stop(); } catch {}
+        recogRef.current = null;
+      }
+    };
+  }, [open]);
+
+  const toggleDictation = () => {
+    const SR: any = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) {
+      toast({ title: "Voice input not supported", description: "Try Chrome or Edge for dictation.", variant: "destructive" });
+      return;
+    }
+    if (listening && recogRef.current) {
+      try { recogRef.current.stop(); } catch {}
+      return;
+    }
+    const r = new SR();
+    r.continuous = true; r.interimResults = false; r.lang = navigator.language || "en-US";
+    r.onresult = (ev: any) => {
+      let chunk = "";
+      for (let i = ev.resultIndex; i < ev.results.length; i++) {
+        if (ev.results[i].isFinal) chunk += ev.results[i][0].transcript;
+      }
+      if (chunk) setBody(b => (b ? `${b}${b.endsWith(" ") || b.endsWith("\n") ? "" : " "}${chunk.trim()}` : chunk.trim()));
+    };
+    r.onend = () => { setListening(false); recogRef.current = null; };
+    r.onerror = () => { setListening(false); recogRef.current = null; };
+    try { r.start(); recogRef.current = r; setListening(true); }
+    catch { toast({ title: "Couldn't start mic", variant: "destructive" }); }
+  };
+
+  const onPickPhoto = (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Please pick an image file", variant: "destructive" }); return;
+    }
+    if (file.size > 4 * 1024 * 1024) {
+      toast({ title: "Image too large", description: "Please choose a photo under 4 MB.", variant: "destructive" }); return;
+    }
+    // Down-scale via canvas to keep localStorage manageable.
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = () => {
+      img.onload = () => {
+        const max = 1280;
+        const scale = Math.min(1, max / Math.max(img.width, img.height));
+        const w = Math.round(img.width * scale), h = Math.round(img.height * scale);
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) { setPhoto(reader.result as string); return; }
+        ctx.drawImage(img, 0, 0, w, h);
+        setPhoto(canvas.toDataURL("image/jpeg", 0.82));
+      };
+      img.onerror = () => setPhoto(reader.result as string);
+      img.src = reader.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
 
   // Listen for "write to today's prompt" prefill
   useEffect(() => {
@@ -669,12 +811,12 @@ function EntryEditor({
   };
 
   const submit = () => {
-    if (!body.trim() && !title.trim()) { onClose(); return; }
+    if (!body.trim() && !title.trim() && !photo) { onClose(); return; }
     onSave({
       id: entry?.id, type,
       title: title.trim(), body: body.trim(),
       mood, isSecret: isSecret || type === "secret",
-      pinned, tags,
+      pinned, tags, photo,
     });
   };
 
@@ -749,10 +891,37 @@ function EntryEditor({
 
               {/* Body with markdown preview toggle */}
               <div>
-                <div className="flex items-center justify-between mb-1.5">
+                <div className="flex items-center justify-between mb-1.5 gap-2 flex-wrap">
                   <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">What's on your mind?</h4>
-                  <div className="flex items-center gap-3 text-[11px] text-slate-400">
-                    <span>{wordCount} words · {charCount} chars</span>
+                  <div className="flex items-center gap-2 text-[11px] text-slate-400">
+                    <span>{wordCount} words · {charCount} chars · {readingTimeMin(body)} min read</span>
+                    <button
+                      onClick={toggleDictation}
+                      title={listening ? "Stop dictation" : "Dictate with your voice"}
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border ${
+                        listening
+                          ? "bg-rose-500 text-white border-rose-500 animate-pulse"
+                          : "border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
+                      }`}
+                    >
+                      {listening ? <MicOff className="w-3 h-3" /> : <Mic className="w-3 h-3" />}
+                      {listening ? "Listening…" : "Voice"}
+                    </button>
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      title="Attach a photo"
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
+                    >
+                      <ImageIcon className="w-3 h-3" /> Photo
+                    </button>
+                    <input
+                      ref={fileInputRef} type="file" accept="image/*" className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) onPickPhoto(f);
+                        e.target.value = "";
+                      }}
+                    />
                     <button
                       onClick={() => setPreviewMd(p => !p)}
                       className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border ${previewMd ? "bg-primary text-white border-primary" : "border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
@@ -776,6 +945,20 @@ function EntryEditor({
                   />
                 )}
               </div>
+
+              {/* Photo preview */}
+              {photo && (
+                <div className="relative inline-block group">
+                  <img src={photo} alt="Attached" className="rounded-lg max-h-48 border border-slate-200 dark:border-slate-700" />
+                  <button
+                    onClick={() => setPhoto(undefined)}
+                    className="absolute top-1.5 right-1.5 p-1 rounded-full bg-black/60 text-white opacity-90 hover:bg-rose-500"
+                    title="Remove photo"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
 
               {/* Tags */}
               <div>
@@ -880,6 +1063,289 @@ function EntryEditor({
         </motion.div>
       )}
     </AnimatePresence>
+  );
+}
+
+// ─── AI Reflection modal ───────────────────────────────────────────────────
+function ReflectionModal({
+  open, onClose, entries,
+}: { open: boolean; onClose: () => void; entries: DiaryEntry[] }) {
+  const [loading, setLoading] = useState(false);
+  const [reflection, setReflection] = useState("");
+  const [error, setError] = useState("");
+
+  const [consented, setConsented] = useState(false);
+  // Reset on open and require explicit consent every time.
+  useEffect(() => {
+    if (open) { setConsented(false); setReflection(""); setError(""); setLoading(false); }
+  }, [open]);
+
+  const startReflection = () => {
+    const weekAgo = Date.now() - 7 * 86400_000;
+    const recent = entries
+      .filter(e => e.createdAt >= weekAgo && !e.isSecret && e.type !== "secret")
+      .slice(0, 14);
+    if (recent.length === 0) {
+      setError("No non-private entries from the last 7 days yet. Write a few and come back.");
+      return;
+    }
+    const summary = recent.map(e => {
+      const d = new Date(e.createdAt).toLocaleDateString();
+      const tags = (e.tags || []).map(t => `#${t}`).join(" ");
+      const body = (e.body || "").slice(0, 400);
+      return `[${d} · ${TYPE_META[e.type].label} · mood ${MOOD_EMOJIS[e.mood-1]}]${tags ? ` ${tags}` : ""}\n${body}`;
+    }).join("\n\n---\n\n");
+
+    setConsented(true); setLoading(true); setError("");
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      signal: ctrl.signal,
+      body: JSON.stringify({
+        message:
+`You are a gentle, kind reflection coach for a young person's private journal. Read the past week of entries below and respond in 4 short sections:
+
+1) Themes I noticed (2–4 bullet points)
+2) Feelings showing up (with emojis)
+3) Something to celebrate
+4) A gentle question to sit with this week
+
+Be warm, specific to what they wrote, never preachy or clinical. Maximum 220 words. Use markdown.
+
+Entries:
+${summary}`,
+      }),
+    })
+      .then(r => r.json())
+      .then(d => {
+        if (ctrl.signal.aborted) return;
+        setReflection(typeof d?.message === "string" ? d.message : (d?.response || d?.reply || "I couldn't put words to it just now — try again in a bit."));
+      })
+      .catch((err) => { if (err?.name !== "AbortError") setError("Couldn't reach the reflection helper. Please try again."); })
+      .finally(() => { if (!ctrl.signal.aborted) setLoading(false); });
+  };
+
+  const abortRef = useRef<AbortController | null>(null);
+  // Cancel in-flight request when the modal closes / unmounts.
+  useEffect(() => {
+    if (!open && abortRef.current) {
+      abortRef.current.abort();
+      abortRef.current = null;
+    }
+    return () => { abortRef.current?.abort(); };
+  }, [open]);
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[80] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={onClose}
+        >
+          <motion.div
+            initial={{ y: 12, opacity: 0, scale: 0.97 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: 8, opacity: 0 }}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden"
+          >
+            <div className="p-5 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 text-white">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Wand2 className="w-5 h-5" />
+                  <h3 className="font-bold text-lg">Reflection on your week</h3>
+                </div>
+                <button onClick={onClose} className="p-1 rounded-md hover:bg-white/20"><X className="w-4 h-4" /></button>
+              </div>
+              <p className="mt-1 text-xs text-white/80">A gentle, AI-assisted look at your last 7 days.</p>
+            </div>
+            <div className="p-5 max-h-[60vh] overflow-y-auto">
+              {!consented && !loading && !reflection && !error && (
+                <div className="space-y-4">
+                  <div className="rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-3 text-sm text-amber-900 dark:text-amber-100">
+                    <strong>Heads up — this one feature isn't local.</strong>
+                    <p className="mt-1 text-xs leading-relaxed">
+                      To create a reflection, a snippet of your last 7 days of non-secret entries (titles, bodies, moods, tags) is sent to the AI service that powers PeaceBoard. Entries marked as <em>Secret</em> or with the "Hide preview" toggle are never sent. You can skip this feature at any time.
+                    </p>
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <button onClick={onClose} className="px-3 py-1.5 text-sm rounded-md text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700">No thanks</button>
+                    <button onClick={startReflection} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md bg-primary text-white hover:bg-primary/90">
+                      <Wand2 className="w-3.5 h-3.5" /> I understand — reflect on my week
+                    </button>
+                  </div>
+                </div>
+              )}
+              {loading && (
+                <div className="flex items-center justify-center py-10 text-slate-500 text-sm gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" /> Reading your week with care…
+                </div>
+              )}
+              {error && !loading && (
+                <p className="text-sm text-rose-500 text-center py-6">{error}</p>
+              )}
+              {reflection && !loading && (
+                <div
+                  className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap text-slate-700 dark:text-slate-200"
+                  dangerouslySetInnerHTML={{ __html: renderTinyMarkdown(reflection) }}
+                />
+              )}
+            </div>
+            <div className="px-5 py-3 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 flex justify-end">
+              <button onClick={onClose} className="px-3 py-1.5 text-sm rounded-md bg-primary text-white hover:bg-primary/90">Close</button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+// ─── Beautiful signed-out landing page ─────────────────────────────────────
+function DiaryLanding() {
+  const { login } = useAuth();
+  const [, setLocation] = useLocation();
+  const [busy, setBusy] = useState(false);
+  const { toast } = useToast();
+
+  const tryAsGuest = async () => {
+    setBusy(true);
+    try {
+      const res = await apiRequest("POST", "/api/auth/guest", {
+        firstName: "Friend", lastName: "", sessionDuration: 24 * 60,
+      });
+      const data = await res.json();
+      const u = data?.user || data;
+      if (u?.id) {
+        login(u);
+        toast({ title: "Welcome 💜", description: "Your diary is ready. Entries stay on this device." });
+      } else {
+        throw new Error("No user");
+      }
+    } catch {
+      toast({ title: "Couldn't start guest session", description: "Please try Sign in instead.", variant: "destructive" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const features: { icon: React.ComponentType<{ className?: string }>; title: string; body: string; tone: string }[] = [
+    { icon: ShieldCheck, title: "Private to your device",  body: "Entries live only in this browser. Add an optional 4-digit PIN for a quick lock.", tone: "from-emerald-400 to-teal-500" },
+    { icon: Sparkles,    title: "Daily writing prompt",   body: "A gentle question every day — or write completely freely whenever you like.", tone: "from-fuchsia-400 to-pink-500" },
+    { icon: Heart,       title: "Mood timeline",          body: "See how you've felt across the last 90 days at a glance with a beautiful heatmap.", tone: "from-rose-400 to-orange-400" },
+    { icon: Mic,         title: "Voice & photos",         body: "Dictate your entry hands-free, or attach a photo to remember the moment.", tone: "from-sky-400 to-indigo-500" },
+    { icon: Wand2,       title: "Weekly reflection",      body: "Get a kind, AI-assisted summary of your week to notice themes and small wins.", tone: "from-violet-400 to-purple-500" },
+    { icon: Download,    title: "Yours to take with you", body: "Export anytime as Markdown or JSON — your words always belong to you.", tone: "from-amber-400 to-orange-500" },
+  ];
+
+  return (
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
+      {/* Hero */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+        className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 text-white shadow-2xl p-8 sm:p-12"
+      >
+        <div aria-hidden className="absolute -top-24 -right-24 w-80 h-80 rounded-full bg-white/10 blur-3xl" />
+        <div aria-hidden className="absolute -bottom-32 -left-16 w-96 h-96 rounded-full bg-white/10 blur-3xl" />
+        <div className="relative grid md:grid-cols-2 gap-8 items-center">
+          <div>
+            <div className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider bg-white/15 border border-white/25 rounded-full px-2.5 py-1">
+              <BookOpen className="w-3 h-3" /> Your private diary
+            </div>
+            <h1 className="mt-4 text-4xl sm:text-5xl font-extrabold leading-tight">
+              A quiet place for your words.
+            </h1>
+            <p className="mt-3 text-white/85 text-base sm:text-lg max-w-md">
+              Capture how you feel, what you're grateful for, dreams, secrets — anything. Stays on your device, with optional PIN lock and gentle daily prompts.
+            </p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <button
+                onClick={tryAsGuest} disabled={busy}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white text-indigo-700 font-semibold shadow hover:bg-white/90 disabled:opacity-60"
+              >
+                {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                Start writing as guest
+              </button>
+              <Link
+                href="/login"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/15 border border-white/30 font-semibold hover:bg-white/25"
+              >
+                Sign in
+              </Link>
+            </div>
+            <div className="mt-4 text-xs text-white/70 inline-flex items-center gap-1.5">
+              <ShieldCheck className="w-3.5 h-3.5" /> Entries stored on this device · optional AI reflection is opt-in
+            </div>
+          </div>
+
+          {/* Mock entry card preview */}
+          <div className="relative">
+            <div className="bg-white text-slate-900 rounded-2xl shadow-2xl p-4 sm:p-5 rotate-[1.5deg] max-w-sm mx-auto">
+              <div className="flex items-center justify-between text-xs text-slate-500">
+                <span className="font-medium">💖 Feeling</span>
+                <span>😄 · Today</span>
+              </div>
+              <h3 className="mt-2 font-bold">A small win</h3>
+              <p className="mt-1 text-sm text-slate-600 leading-relaxed">
+                Helped someone find a seat on the bus. Their smile stuck with me all day. Going to keep noticing little kindnesses like this.
+              </p>
+              <div className="mt-2 flex gap-1">
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700">#kindness</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700">#bus</span>
+              </div>
+            </div>
+            <div className="hidden sm:block absolute -bottom-6 -left-4 bg-white text-slate-900 rounded-2xl shadow-2xl p-4 -rotate-[3deg] max-w-[200px]">
+              <div className="text-xs text-slate-500 font-medium">🙏 Gratitude</div>
+              <p className="mt-1 text-sm">Mom's soup. Always.</p>
+              <div className="mt-1 text-[10px] text-slate-400">😊 · 2 days ago</div>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Feature grid */}
+      <div className="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {features.map((f) => (
+          <motion.div
+            key={f.title}
+            initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 p-5 hover:shadow-md transition-shadow"
+          >
+            <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${f.tone} text-white flex items-center justify-center shadow`}>
+              <f.icon className="w-5 h-5" />
+            </div>
+            <h3 className="mt-3 font-semibold text-slate-900 dark:text-white">{f.title}</h3>
+            <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{f.body}</p>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Daily-prompt teaser */}
+      <div className="mt-8 bg-gradient-to-br from-amber-50 to-rose-50 dark:from-amber-900/20 dark:to-rose-900/20 border border-amber-200 dark:border-amber-800 rounded-2xl p-5 flex items-start gap-3">
+        <Quote className="w-5 h-5 text-amber-600 dark:text-amber-300 mt-0.5 shrink-0" />
+        <div>
+          <div className="text-[11px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300">Today's prompt</div>
+          <p className="mt-1 text-slate-800 dark:text-slate-100 font-medium">{getDailyPrompt()}</p>
+          <button
+            onClick={tryAsGuest} disabled={busy}
+            className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 text-white text-sm font-medium hover:bg-amber-600 disabled:opacity-60"
+          >
+            {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Pencil className="w-3.5 h-3.5" />}
+            Start writing
+          </button>
+        </div>
+      </div>
+
+      {/* Footer privacy strip */}
+      <div className="mt-6 text-center text-xs text-slate-500 dark:text-slate-400">
+        Already have an account? <Link href="/login" className="underline hover:text-primary">Sign in</Link> to access your existing diary on this device.
+      </div>
+    </div>
   );
 }
 
