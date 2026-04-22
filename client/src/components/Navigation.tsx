@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Sun, Moon, Menu, LogOut, LogIn } from "lucide-react";
+import { Sun, Moon, Menu, LogOut, LogIn, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence, useMotionValueEvent, useScroll, useTransform } from "framer-motion";
 import logoImage from "@assets/generated_images/PeaceBoard_educational_platform_logo_a1809512.png";
 import { useAvatar } from "@/hooks/useAvatar";
@@ -40,17 +40,46 @@ export default function Navigation() {
 
   const isAdmin = user?.userType === "school_admin" || user?.userType === "teacher";
 
-  const navigationItems = [
-    ...(user ? [{ href: "/home", label: "Dashboard", icon: "🏠" }] : []),
+  // Primary tabs — always visible across the top.
+  const primaryItems = [
+    { href: "/", label: "About", icon: "✨" },
     { href: "/games", label: "Games", icon: "🎮" },
     { href: "/music", label: "Music", icon: "🎵" },
-    { href: "/leaderboard", label: "Leaderboard", icon: "🏆" },
-    { href: "/check-emotion", label: "Check Your Emotion", icon: "🧠" },
     ...(user ? [{ href: "/diary", label: "Diary", icon: "📓" }] : []),
-    ...(user ? [{ href: "/profile", label: "Profile", icon: "👤" }] : []),
-    ...(user ? [{ href: "/settings", label: "Settings", icon: "⚙️" }] : []),
-    ...(isAdmin ? [{ href: "/admin", label: "Admin", icon: "🛡️" }] : []),
+    { href: "/check-emotion", label: "Check Your Emotion", icon: "🧠" },
   ];
+
+  // Account-area items — grouped under a single "Account" dropdown when signed in.
+  const accountItems = user
+    ? [
+        { href: "/home", label: "Dashboard", icon: "🏠" },
+        { href: "/leaderboard", label: "Leaderboard", icon: "🏆" },
+        { href: "/profile", label: "Profile", icon: "👤" },
+        { href: "/settings", label: "Settings", icon: "⚙️" },
+        ...(isAdmin ? [{ href: "/admin", label: "Admin", icon: "🛡️" }] : []),
+      ]
+    : [{ href: "/leaderboard", label: "Leaderboard", icon: "🏆" }];
+
+  const [accountOpen, setAccountOpen] = useState(false);
+  const accountRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!accountOpen) return;
+    const onClick = (e: MouseEvent) => {
+      if (accountRef.current && !accountRef.current.contains(e.target as Node)) setAccountOpen(false);
+    };
+    const onEsc = (e: KeyboardEvent) => { if (e.key === "Escape") setAccountOpen(false); };
+    document.addEventListener("mousedown", onClick);
+    document.addEventListener("keydown", onEsc);
+    return () => {
+      document.removeEventListener("mousedown", onClick);
+      document.removeEventListener("keydown", onEsc);
+    };
+  }, [accountOpen]);
+
+  // Close the account dropdown whenever the route changes.
+  useEffect(() => { setAccountOpen(false); }, [location]);
+
+  const accountActive = accountItems.some(i => i.href === location);
 
   const NavLink = ({ href, label, icon, mobile = false }: { href: string; label: string; icon: string; mobile?: boolean }) => {
     const isActive = location === href;
@@ -122,8 +151,8 @@ export default function Navigation() {
             </Link>
 
             {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center space-x-2 lg:space-x-4">
-              {navigationItems.map((item, i) => (
+            <div className="hidden md:flex items-center space-x-1 lg:space-x-2">
+              {primaryItems.map((item, i) => (
                 <motion.div
                   key={item.href}
                   initial={{ opacity: 0, y: -8 }}
@@ -133,6 +162,84 @@ export default function Navigation() {
                   <NavLink {...item} />
                 </motion.div>
               ))}
+
+              {/* Account dropdown */}
+              <div ref={accountRef} className="relative">
+                <motion.button
+                  whileHover={{ scale: 1.04, y: -1 }}
+                  whileTap={{ scale: 0.96 }}
+                  onClick={() => setAccountOpen(o => !o)}
+                  aria-haspopup="menu"
+                  aria-expanded={accountOpen}
+                  className={`relative inline-flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+                    accountActive ? "text-primary" : "text-slate-600 dark:text-slate-300 hover:text-primary hover:bg-primary/5"
+                  }`}
+                >
+                  {accountActive && (
+                    <motion.span
+                      layoutId="active-nav-pill"
+                      className="absolute inset-0 rounded-lg bg-gradient-to-r from-primary/15 to-secondary/15 -z-0 ring-1 ring-primary/20"
+                      transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                    />
+                  )}
+                  <span className="relative z-10">{user ? "Account" : "More"}</span>
+                  <motion.span animate={{ rotate: accountOpen ? 180 : 0 }} className="relative z-10">
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </motion.span>
+                </motion.button>
+                <AnimatePresence>
+                  {accountOpen && (
+                    <motion.div
+                      role="menu"
+                      initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl overflow-hidden z-50"
+                    >
+                      {user && (
+                        <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40">
+                          <p className="text-[11px] uppercase tracking-wider text-slate-400 font-bold">Signed in as</p>
+                          <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">
+                            {user.firstName || user.email || "User"}
+                          </p>
+                          <p className="text-[11px] text-slate-500 capitalize">{user.userType?.replace("_", " ") || "user"}</p>
+                        </div>
+                      )}
+                      <div className="py-1">
+                        {accountItems.map(item => {
+                          const isActive = location === item.href;
+                          return (
+                            <Link key={item.href} href={item.href}>
+                              <div
+                                role="menuitem"
+                                onClick={() => setAccountOpen(false)}
+                                className={`flex items-center gap-2.5 px-3 py-2 text-sm cursor-pointer ${
+                                  isActive
+                                    ? "bg-primary/10 text-primary font-semibold"
+                                    : "text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
+                                }`}
+                              >
+                                <span className="text-base w-5 text-center">{item.icon}</span>
+                                <span>{item.label}</span>
+                              </div>
+                            </Link>
+                          );
+                        })}
+                        {user && (
+                          <button
+                            onClick={() => { setAccountOpen(false); logout(); }}
+                            className="w-full text-left flex items-center gap-2.5 px-3 py-2 text-sm text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 border-t border-slate-100 dark:border-slate-800"
+                          >
+                            <LogOut className="w-4 h-4" />
+                            <span>Sign out</span>
+                          </button>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
 
             {/* Right side */}
@@ -226,7 +333,7 @@ export default function Navigation() {
                         </Button>
                       </div>
                     )}
-                    {navigationItems.map((item, i) => (
+                    {primaryItems.map((item, i) => (
                       <motion.div
                         key={item.href}
                         initial={{ opacity: 0, x: 20 }}
@@ -236,6 +343,23 @@ export default function Navigation() {
                         <NavLink {...item} mobile />
                       </motion.div>
                     ))}
+
+                    {/* Mobile account section */}
+                    <div className="pt-3 mt-3 border-t border-slate-200 dark:border-slate-700">
+                      <p className="px-4 pb-2 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                        {user ? "Account" : "More"}
+                      </p>
+                      {accountItems.map((item, i) => (
+                        <motion.div
+                          key={item.href}
+                          initial={{ opacity: 0, x: 20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: (primaryItems.length + i) * 0.04 }}
+                        >
+                          <NavLink {...item} mobile />
+                        </motion.div>
+                      ))}
+                    </div>
                   </div>
                 </SheetContent>
               </Sheet>
