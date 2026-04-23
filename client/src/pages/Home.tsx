@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -51,6 +52,7 @@ function todaysQuoteIndex() {
 }
 
 export default function Home() {
+  useDocumentTitle("Dashboard");
   const [, setLocation] = useLocation();
   const { user } = useAuth();
   const isGuest = !!user?.id?.startsWith("guest_");

@@ -31,6 +31,8 @@ import AdminDashboard from "@/pages/AdminDashboard";
 import Diary from "@/pages/Diary";
 import Settings from "@/pages/Settings";
 import InviteLanding from "@/pages/InviteLanding";
+import Garden from "@/pages/Garden";
+import MobileBottomNav from "@/components/MobileBottomNav";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -48,6 +50,7 @@ function Router() {
       <Route path="/face-analysis" component={FaceAnalysis} />
       <Route path="/profile" component={Profile} />
       <Route path="/diary" component={Diary} />
+      <Route path="/garden" component={Garden} />
       <Route path="/settings" component={Settings} />
       <Route path="/invite/:code" component={InviteLanding} />
       <Route path="/admin" component={AdminDashboard} />
@@ -72,6 +75,7 @@ function App() {
                 </PageTransition>
               </main>
               <FloatingChatbot />
+              <MobileBottomNav />
               <BackToTop />
               <CommandPalette />
               <KeyboardShortcuts />

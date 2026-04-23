@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -232,6 +233,7 @@ function SleepTimer() {
 
 // ─── Main Page ───────────────────────────────────────────────────────────────
 export default function MusicCenter() {
+  useDocumentTitle("Music for Your Mind");
   const { user } = useAuth();
   const [currentTrack, setCurrentTrack]     = useState<typeof ALL_TRACKS[0]>(() => {
     try {

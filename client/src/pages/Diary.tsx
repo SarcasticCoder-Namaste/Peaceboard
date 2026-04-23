@@ -3,6 +3,7 @@ import { Link, useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { apiRequest } from "@/lib/queryClient";
 import {
   Lock, Plus, Search, Trash2, Pencil, Eye, EyeOff,
@@ -45,6 +46,7 @@ function highlight(text: string, q: string) {
 }
 
 export default function DiaryPage() {
+  useDocumentTitle("Diary");
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
   const userId = user?.id || "";

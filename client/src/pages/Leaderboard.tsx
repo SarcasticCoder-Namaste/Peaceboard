@@ -7,8 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Trophy, Medal, Award, Crown, Star, TrendingUp } from "lucide-react";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 
 export default function Leaderboard() {
+  useDocumentTitle("Leaderboard");
   const [timeframe, setTimeframe] = useState<string>("weekly");
   const { user } = useAuth();
 
@@ -227,15 +229,29 @@ export default function Leaderboard() {
                           <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-16"></div>
                         </div>
                       ))
+                    ) : leaderboard.length === 0 ? (
+                      <div className="text-center py-12">
+                        <div className="text-6xl mb-3">🏆</div>
+                        <p className="font-semibold text-slate-700 dark:text-slate-200 mb-1">
+                          The leaderboard is empty
+                        </p>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+                          Play a game or complete a kindness activity to be the first one here this {timeframe === "weekly" ? "week" : timeframe === "monthly" ? "month" : "season"}!
+                        </p>
+                      </div>
+                    ) : leaderboard.length <= 3 ? (
+                      <div className="text-center py-6 text-sm text-slate-500 dark:text-slate-400">
+                        Only the top {leaderboard.length} {leaderboard.length === 1 ? "player has" : "players have"} earned points so far. Keep playing to grow the board!
+                      </div>
                     ) : (
-                      leaderboard.slice(3).map((user: any, index: number) => (
+                      leaderboard.slice(3).map((rowUser: any, index: number) => (
                         <motion.div
-                          key={user.id}
+                          key={rowUser.id}
                           initial={{ opacity: 0, x: -20 }}
                           animate={{ opacity: 1, x: 0 }}
                           transition={{ delay: index * 0.1 }}
                           className={`flex items-center justify-between p-4 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors ${
-                            user.id === user?.id ? "ring-2 ring-primary bg-primary/5" : ""
+                            rowUser.id === user?.id ? "ring-2 ring-primary bg-primary/5" : ""
                           }`}
                         >
                           <div className="flex items-center space-x-4">
@@ -243,25 +259,25 @@ export default function Leaderboard() {
                               {index + 4}
                             </div>
                             <Avatar className="w-10 h-10">
-                              <AvatarImage src={user.profileImageUrl} />
+                              <AvatarImage src={rowUser.profileImageUrl} />
                               <AvatarFallback>
-                                {user.firstName?.[0] || user.email?.[0] || "U"}
+                                {rowUser.firstName?.[0] || rowUser.email?.[0] || "U"}
                               </AvatarFallback>
                             </Avatar>
                             <div>
                               <p className="font-medium text-slate-900 dark:text-white">
-                                {user.firstName || user.email || `User ${user.id.slice(-4)}`}
+                                {rowUser.firstName || rowUser.email || `User ${rowUser.id.slice(-4)}`}
                               </p>
-                              {user.schoolDomain && (
+                              {rowUser.schoolDomain && (
                                 <p className="text-sm text-slate-600 dark:text-slate-300">
-                                  {user.schoolDomain}
+                                  {rowUser.schoolDomain}
                                 </p>
                               )}
                             </div>
                           </div>
                           <div className="text-right">
                             <p className="font-bold text-slate-900 dark:text-white">
-                              {user.totalPoints || 0}
+                              {rowUser.totalPoints || 0}
                             </p>
                             <p className="text-sm text-slate-600 dark:text-slate-300">points</p>
                           </div>

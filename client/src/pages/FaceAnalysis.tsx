@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
@@ -192,6 +193,7 @@ function EmotionTimeline({ history }: { history: EmotionEntry[] }) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function FaceAnalysis() {
+  useDocumentTitle("Check Your Emotion");
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -245,6 +247,12 @@ export default function FaceAnalysis() {
     setIsLoading(true); setError(null); setLoadProgress(0);
     try {
       setLoadingStep("Initializing WebGL AI engine…");
+      // Detect WebGL up-front so we can show a friendly message instead of a stack trace
+      const probe = document.createElement("canvas");
+      const gl = probe.getContext("webgl2") || probe.getContext("webgl") || probe.getContext("experimental-webgl");
+      if (!gl) {
+        throw new Error("WebGL is not supported in this browser. Try Chrome, Firefox, or Edge with hardware acceleration enabled.");
+      }
       const tf = (faceapi as any).tf;
       if (tf) { await tf.setBackend("webgl"); await tf.ready(); }
       setLoadProgress(10);
@@ -266,8 +274,8 @@ export default function FaceAnalysis() {
       setLoadProgress(100);
 
       setModelsLoaded(true); setLoadingStep("");
-    } catch (err) {
-      setError("Failed to load AI models. Please refresh and try again.");
+    } catch (err: any) {
+      setError(err?.message || "Failed to load AI models. Please refresh and try again.");
     } finally { setIsLoading(false); }
   }, [modelsLoaded]);
 

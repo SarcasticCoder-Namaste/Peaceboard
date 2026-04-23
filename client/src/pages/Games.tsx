@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
@@ -12,6 +13,7 @@ import GameModal from "@/components/games/GameModal";
 import { Grid, List, Filter, Trophy } from "lucide-react";
 
 export default function Games() {
+  useDocumentTitle("Empathy Games");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [difficultyFilter, setDifficultyFilter] = useState<string>("all");

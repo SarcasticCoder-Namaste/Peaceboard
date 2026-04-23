@@ -342,7 +342,7 @@ export default function FloatingChatbot() {
     <>
       {/* Floating action button */}
       <motion.div
-        className="fixed bottom-6 right-6 z-40"
+        className="fixed bottom-20 md:bottom-6 right-4 md:right-6 z-40"
         initial={{ scale: 0, rotate: -90 }}
         animate={{ scale: 1, rotate: 0 }}
         transition={{ type: "spring", stiffness: 260, damping: 18, delay: 0.4 }}
