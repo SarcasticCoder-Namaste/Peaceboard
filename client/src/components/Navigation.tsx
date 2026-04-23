@@ -40,14 +40,18 @@ export default function Navigation() {
 
   const isAdmin = user?.userType === "school_admin" || user?.userType === "teacher";
 
-  // Primary tabs — always visible across the top.
-  const primaryItems = [
-    { href: "/", label: "About", icon: "✨" },
-    { href: "/games", label: "Games", icon: "🎮" },
-    { href: "/music", label: "Music", icon: "🎵" },
-    { href: "/diary", label: "Diary", icon: "📓" },
-    { href: "/check-emotion", label: "Check Your Emotion", icon: "🧠" },
-  ];
+  // Primary tabs — only the landing page is visible to visitors who haven't signed in
+  // or entered guest mode yet. Once authenticated (any user, including guests), the
+  // full app navigation appears.
+  const primaryItems = user
+    ? [
+        { href: "/", label: "About", icon: "✨" },
+        { href: "/games", label: "Games", icon: "🎮" },
+        { href: "/music", label: "Music", icon: "🎵" },
+        { href: "/diary", label: "Diary", icon: "📓" },
+        { href: "/check-emotion", label: "Check Your Emotion", icon: "🧠" },
+      ]
+    : [{ href: "/", label: "About", icon: "✨" }];
 
   // Account-area items — grouped under a single "Account" dropdown when signed in.
   const accountItems = user
@@ -58,7 +62,7 @@ export default function Navigation() {
         { href: "/settings", label: "Settings", icon: "⚙️" },
         ...(isAdmin ? [{ href: "/admin", label: "Admin", icon: "🛡️" }] : []),
       ]
-    : [{ href: "/leaderboard", label: "Leaderboard", icon: "🏆" }];
+    : [];
 
   const [accountOpen, setAccountOpen] = useState(false);
   const accountRef = useRef<HTMLDivElement>(null);
