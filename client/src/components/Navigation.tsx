@@ -167,7 +167,8 @@ export default function Navigation() {
                 </motion.div>
               ))}
 
-              {/* Account dropdown */}
+              {/* Account dropdown — only when signed in */}
+              {user && (
               <div ref={accountRef} className="relative">
                 <motion.button
                   whileHover={{ scale: 1.04, y: -1 }}
@@ -244,6 +245,7 @@ export default function Navigation() {
                   )}
                 </AnimatePresence>
               </div>
+              )}
             </div>
 
             {/* Right side */}

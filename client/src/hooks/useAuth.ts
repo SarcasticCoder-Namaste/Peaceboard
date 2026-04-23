@@ -1,4 +1,3 @@
-import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 
 interface User {
@@ -13,42 +12,56 @@ interface User {
   guestSessionExpiry?: string;
 }
 
-export function useAuth() {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+const AUTH_EVENT = "peaceboard:auth-change";
+const STORAGE_KEY = "peaceboard_user";
 
-  useEffect(() => {
-    // Check localStorage for current user
-    const savedUser = localStorage.getItem("peaceboard_user");
-    if (savedUser) {
-      try {
-        const user = JSON.parse(savedUser);
-        // Check if guest session is still valid
-        if (user.userType === "guest" && user.guestSessionExpiry) {
-          if (new Date() > new Date(user.guestSessionExpiry)) {
-            localStorage.removeItem("peaceboard_user");
-            setCurrentUser(null);
-          } else {
-            setCurrentUser(user);
-          }
-        } else {
-          setCurrentUser(user);
-        }
-      } catch {
-        localStorage.removeItem("peaceboard_user");
+function readUser(): User | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const user = JSON.parse(raw) as User;
+    if (user.userType === "guest" && user.guestSessionExpiry) {
+      if (new Date() > new Date(user.guestSessionExpiry)) {
+        localStorage.removeItem(STORAGE_KEY);
+        return null;
       }
     }
+    return user;
+  } catch {
+    localStorage.removeItem(STORAGE_KEY);
+    return null;
+  }
+}
+
+export function useAuth() {
+  const [currentUser, setCurrentUser] = useState<User | null>(() =>
+    typeof window === "undefined" ? null : readUser()
+  );
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    setCurrentUser(readUser());
     setIsLoading(false);
+
+    const sync = () => setCurrentUser(readUser());
+    window.addEventListener("storage", sync);
+    window.addEventListener(AUTH_EVENT, sync);
+    return () => {
+      window.removeEventListener("storage", sync);
+      window.removeEventListener(AUTH_EVENT, sync);
+    };
   }, []);
 
   const login = (user: User) => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
     setCurrentUser(user);
-    localStorage.setItem("peaceboard_user", JSON.stringify(user));
+    window.dispatchEvent(new Event(AUTH_EVENT));
   };
 
   const logout = () => {
+    localStorage.removeItem(STORAGE_KEY);
     setCurrentUser(null);
-    localStorage.removeItem("peaceboard_user");
+    window.dispatchEvent(new Event(AUTH_EVENT));
   };
 
   return {
