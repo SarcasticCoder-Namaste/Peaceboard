@@ -45,7 +45,7 @@ export default function Navigation() {
     { href: "/", label: "About", icon: "✨" },
     { href: "/games", label: "Games", icon: "🎮" },
     { href: "/music", label: "Music", icon: "🎵" },
-    ...(user ? [{ href: "/diary", label: "Diary", icon: "📓" }] : []),
+    { href: "/diary", label: "Diary", icon: "📓" },
     { href: "/check-emotion", label: "Check Your Emotion", icon: "🧠" },
   ];
 
