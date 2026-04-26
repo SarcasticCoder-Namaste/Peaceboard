@@ -14,7 +14,9 @@ import {
 } from "lucide-react";
 import Confetti from "@/components/Confetti";
 import CountUp from "@/components/CountUp";
+import MoodHeatmap from "@/components/MoodHeatmap";
 import { Quote, Shuffle } from "lucide-react";
+import { listEntries as listDiaryEntries } from "@/lib/diaryStore";
 
 // ─── Daily challenges (rotates daily) ─────────────────────────────────────
 const CHALLENGES = [
@@ -127,6 +129,24 @@ export default function Home() {
     };
   }, [userProgress, userRank, userAchievements, history, emotions]);
 
+  // Diary entries for the heatmap (read directly from the per-user local store).
+  // diaryTick bumps whenever the diary store dispatches a change event, so the
+  // heatmap stays fresh without polling.
+  const [diaryTick, setDiaryTick] = useState(0);
+  useEffect(() => {
+    const onChange = () => setDiaryTick((n) => n + 1);
+    window.addEventListener("peaceboard:diary-change", onChange);
+    window.addEventListener("storage", onChange); // also react to changes in other tabs
+    return () => {
+      window.removeEventListener("peaceboard:diary-change", onChange);
+      window.removeEventListener("storage", onChange);
+    };
+  }, []);
+  const diaryEntries = useMemo(() => {
+    if (!user?.id) return [];
+    try { return listDiaryEntries(user.id); } catch { return []; }
+  }, [user?.id, diaryTick]);
+
   const challenge = todaysChallenge();
   const chKey = challengeKey(user?.id);
   const [challengeDone, setChallengeDone] = useState<boolean>(() => {
@@ -223,6 +243,16 @@ export default function Home() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Mood Heatmap */}
+            <div className="mt-6">
+              <MoodHeatmap
+                progress={userProgress}
+                emotions={emotions}
+                music={history}
+                diary={diaryEntries}
+              />
+            </div>
 
             {/* Weekly Progress */}
             <Card className="mt-6">

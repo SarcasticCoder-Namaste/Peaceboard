@@ -34,6 +34,16 @@ export interface DiaryStats {
 }
 
 const entriesKey = (uid: string) => `peaceboard_diary_${uid}`;
+
+// Lets other parts of the app (e.g. the dashboard heatmap) react to diary
+// changes without polling. Safe to call in any environment.
+function notifyDiaryChange(userId: string) {
+  try {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("peaceboard:diary-change", { detail: { userId } }));
+    }
+  } catch {}
+}
 const pinKey = (uid: string) => `peaceboard_diary_pin_${uid}`;
 const sessionKey = (uid: string) => `peaceboard_diary_session_${uid}`;
 
@@ -85,6 +95,7 @@ export function saveEntry(userId: string, entry: Omit<DiaryEntry, "id" | "create
       } as DiaryEntry;
       all[i] = updated;
       localStorage.setItem(entriesKey(userId), JSON.stringify(all));
+      notifyDiaryChange(userId);
       return updated;
     }
   }
@@ -102,12 +113,14 @@ export function saveEntry(userId: string, entry: Omit<DiaryEntry, "id" | "create
     updatedAt: now,
   };
   localStorage.setItem(entriesKey(userId), JSON.stringify([created, ...all]));
+  notifyDiaryChange(userId);
   return created;
 }
 
 export function deleteEntry(userId: string, id: string) {
   const all = listEntries(userId).filter((e) => e.id !== id);
   localStorage.setItem(entriesKey(userId), JSON.stringify(all));
+  notifyDiaryChange(userId);
 }
 
 export function togglePin(userId: string, id: string) {
@@ -116,6 +129,7 @@ export function togglePin(userId: string, id: string) {
   if (i < 0) return;
   all[i] = { ...all[i], pinned: !all[i].pinned, updatedAt: Date.now() };
   localStorage.setItem(entriesKey(userId), JSON.stringify(all));
+  notifyDiaryChange(userId);
 }
 
 // ─── Stats / analytics ────────────────────────────────────────────────────────
