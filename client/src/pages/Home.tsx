@@ -15,6 +15,7 @@ import {
 import Confetti from "@/components/Confetti";
 import CountUp from "@/components/CountUp";
 import MoodHeatmap from "@/components/MoodHeatmap";
+import MysteryCard from "@/components/MysteryCard";
 import { Quote, Shuffle } from "lucide-react";
 import { listEntries as listDiaryEntries } from "@/lib/diaryStore";
 
@@ -178,6 +179,7 @@ export default function Home() {
     { title: "Play Games",       description: "Continue your empathy journey", icon: Gamepad2,  color: "from-blue-500 to-blue-600",     action: () => setLocation("/games") },
     { title: "Listen to Music",  description: "Find peace and mindfulness",    icon: Music,     color: "from-emerald-500 to-emerald-600", action: () => setLocation("/music") },
     { title: "Check Emotion",    description: "Quick wellness check-in",       icon: Heart,     color: "from-rose-500 to-pink-600",     action: () => setLocation("/check-emotion") },
+    { title: "Emotion Wheel",    description: "Name what you're feeling",      icon: Sparkles,  color: "from-fuchsia-500 to-violet-600", action: () => setLocation("/emotion-wheel") },
     { title: "View Leaderboard", description: "See where you rank",            icon: Trophy,    color: "from-yellow-500 to-orange-500", action: () => setLocation("/leaderboard") },
     { title: "Your Profile",     description: "Stats, badges & history",        icon: UserIcon,  color: "from-violet-500 to-purple-600", action: () => setLocation("/profile") },
     { title: "Analytics",        description: "Track class growth",             icon: BarChart3, color: "from-cyan-500 to-blue-600",     action: () => setLocation("/analytics"), show: user?.userType === "school_admin" || user?.userType === "teacher" },
@@ -321,6 +323,9 @@ export default function Home() {
                 </motion.div>
               </CardContent>
             </Card>
+
+            {/* Mystery Kindness Card */}
+            <MysteryCard userId={user?.id} />
 
             {/* Daily Challenge */}
             <Card className={challengeDone ? "border-emerald-300 dark:border-emerald-700" : ""}>

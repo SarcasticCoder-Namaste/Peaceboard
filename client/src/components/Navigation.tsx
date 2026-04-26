@@ -51,6 +51,7 @@ export default function Navigation() {
         { href: "/garden", label: "Garden", icon: "🌱" },
         { href: "/diary", label: "Diary", icon: "📓" },
         { href: "/check-emotion", label: "Check Your Emotion", icon: "🧠" },
+        { href: "/emotion-wheel", label: "Emotion Wheel", icon: "🎡" },
       ]
     : [{ href: "/", label: "About", icon: "✨" }];
 
