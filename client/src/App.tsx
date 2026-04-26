@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -33,6 +33,7 @@ import Settings from "@/pages/Settings";
 import InviteLanding from "@/pages/InviteLanding";
 import Garden from "@/pages/Garden";
 import EmotionWheelPage from "@/pages/EmotionWheelPage";
+import WindDown from "@/pages/WindDown";
 import MobileBottomNav from "@/components/MobileBottomNav";
 import NotFound from "@/pages/not-found";
 
@@ -53,11 +54,37 @@ function Router() {
       <Route path="/diary" component={Diary} />
       <Route path="/garden" component={Garden} />
       <Route path="/emotion-wheel" component={EmotionWheelPage} />
+      <Route path="/wind-down" component={WindDown} />
       <Route path="/settings" component={Settings} />
       <Route path="/invite/:code" component={InviteLanding} />
       <Route path="/admin" component={AdminDashboard} />
       <Route component={NotFound} />
     </Switch>
+  );
+}
+
+function AppShell() {
+  const [location] = useLocation();
+  // Pages that should take over the whole screen with no global chrome
+  const immersive = location.startsWith("/wind-down");
+  return (
+    <div className="relative min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 text-slate-900 dark:text-slate-100 transition-all duration-300 overflow-x-hidden">
+      {!immersive && <AnimatedBackground />}
+      {!immersive && <Navigation />}
+      <main id="main-content" tabIndex={-1} className="outline-none">
+        <PageTransition>
+          <Router />
+        </PageTransition>
+      </main>
+      {!immersive && <FloatingChatbot />}
+      {!immersive && <MobileBottomNav />}
+      {!immersive && <BackToTop />}
+      <CommandPalette />
+      <KeyboardShortcuts />
+      {!immersive && <OnboardingTour />}
+      <AchievementWatcher />
+      <Toaster />
+    </div>
   );
 }
 
@@ -68,23 +95,7 @@ function App() {
         <TooltipProvider>
           <ErrorBoundary>
             <ScrollToTop />
-            <div className="relative min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 text-slate-900 dark:text-slate-100 transition-all duration-300 overflow-x-hidden">
-              <AnimatedBackground />
-              <Navigation />
-              <main id="main-content" tabIndex={-1} className="outline-none">
-                <PageTransition>
-                  <Router />
-                </PageTransition>
-              </main>
-              <FloatingChatbot />
-              <MobileBottomNav />
-              <BackToTop />
-              <CommandPalette />
-              <KeyboardShortcuts />
-              <OnboardingTour />
-              <AchievementWatcher />
-              <Toaster />
-            </div>
+            <AppShell />
           </ErrorBoundary>
         </TooltipProvider>
       </ThemeProvider>
