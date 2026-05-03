@@ -4,7 +4,7 @@ import { Link, useLocation } from "wouter";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { X, Moon, Volume2, VolumeX, Pause, Play, RotateCcw, Heart } from "lucide-react";
+import { X, Moon, Volume2, VolumeX, Pause, Play, RotateCcw, Heart, Mic, MicOff } from "lucide-react";
 
 // ─── Breathing patterns ──────────────────────────────────────────────────────
 type BreathStep = { label: string; seconds: number; scale: number };
@@ -123,6 +123,7 @@ export default function WindDown() {
   const [stepIdx, setStepIdx] = useState(0);
   const [cyclesDone, setCyclesDone] = useState(0);
   const [soundOn, setSoundOn] = useState(false);
+  const [voiceOn, setVoiceOn] = useState(false);
   const [showReflection, setShowReflection] = useState(false);
 
   const pattern = useMemo(() => PATTERNS.find((p) => p.id === patternId) || PATTERNS[0], [patternId]);
@@ -130,6 +131,38 @@ export default function WindDown() {
   const targetCycles = 6;
 
   useSoftTone(soundOn && running);
+
+  // Gentle voice narration of each breath step (Web Speech API).
+  // Pre-loads voices and speaks softly when a new step begins.
+  useEffect(() => {
+    if (!voiceOn || !running) return;
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    try {
+      const synth = window.speechSynthesis;
+      synth.cancel();
+      const utter = new SpeechSynthesisUtterance(currentStep.label);
+      utter.rate = 0.75;
+      utter.pitch = 0.85;
+      utter.volume = 0.7;
+      // Prefer a calm-sounding female voice if available
+      const voices = synth.getVoices();
+      const preferred = voices.find(v => /samantha|victoria|female|google uk english female/i.test(v.name))
+        || voices.find(v => v.lang?.startsWith("en"))
+        || voices[0];
+      if (preferred) utter.voice = preferred;
+      synth.speak(utter);
+    } catch {}
+    return () => {
+      try { window.speechSynthesis?.cancel(); } catch {}
+    };
+  }, [stepIdx, running, voiceOn, currentStep.label]);
+
+  // Stop any narration when the user pauses or unmounts
+  useEffect(() => {
+    return () => {
+      try { window.speechSynthesis?.cancel(); } catch {}
+    };
+  }, []);
 
   // Drive the breathing cycle
   useEffect(() => {
@@ -207,6 +240,15 @@ export default function WindDown() {
           <span className="font-semibold">Bedtime Wind-Down</span>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setVoiceOn((v) => !v)}
+            aria-label={voiceOn ? "Turn off voice guidance" : "Turn on voice guidance"}
+            className="text-white/80 hover:text-white hover:bg-white/10"
+          >
+            {voiceOn ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4" />}
+          </Button>
           <Button
             variant="ghost"
             size="sm"

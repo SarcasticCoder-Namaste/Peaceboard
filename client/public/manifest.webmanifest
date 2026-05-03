@@ -1,0 +1,25 @@
+{
+  "name": "PeaceBoard — Empathy, Kindness & Calm",
+  "short_name": "PeaceBoard",
+  "description": "Build empathy, kindness and emotional intelligence with games, calming music, mindful breathing, and AI guidance.",
+  "start_url": "/home",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f172a",
+  "theme_color": "#3b82f6",
+  "categories": ["education", "lifestyle", "health"],
+  "icons": [
+    {
+      "src": "/pwa-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    { "name": "Wind Down", "short_name": "Breathe", "url": "/wind-down" },
+    { "name": "Diary",     "short_name": "Diary",   "url": "/diary" },
+    { "name": "Games",     "short_name": "Games",   "url": "/games" }
+  ]
+}

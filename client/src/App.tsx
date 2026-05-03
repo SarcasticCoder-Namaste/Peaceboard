@@ -35,6 +35,7 @@ import Garden from "@/pages/Garden";
 import EmotionWheelPage from "@/pages/EmotionWheelPage";
 import WindDown from "@/pages/WindDown";
 import Compliments from "@/pages/Compliments";
+import Digest from "@/pages/Digest";
 import MobileBottomNav from "@/components/MobileBottomNav";
 import NotFound from "@/pages/not-found";
 
@@ -60,6 +61,7 @@ function Router() {
       <Route path="/settings" component={Settings} />
       <Route path="/invite/:code" component={InviteLanding} />
       <Route path="/admin" component={AdminDashboard} />
+      <Route path="/digest" component={Digest} />
       <Route component={NotFound} />
     </Switch>
   );

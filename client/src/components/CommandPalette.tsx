@@ -1,12 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import {
   Home, Gamepad2, Music, Trophy, BarChart3, Heart, User as UserIcon,
   Shield, Sun, Moon, Search, LogIn, MessageSquare, Info, BookOpen, Settings as SettingsIcon, UserPlus,
+  FileText, Sparkles,
 } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/hooks/useAuth";
+import { listEntries, TYPE_META, type DiaryEntry } from "@/lib/diaryStore";
+import type { Game } from "@shared/schema";
 
 interface Cmd {
   id: string;
@@ -25,6 +29,19 @@ export default function CommandPalette() {
   const { theme, toggleTheme } = useTheme();
   const { user, logout } = useAuth();
   const isAdmin = user?.userType === "school_admin" || user?.userType === "teacher";
+
+  // Pull all games and the user's diary so search can dive into content, not just nav.
+  const gamesQuery = useQuery<Game[]>({ queryKey: ["/api/games"], enabled: open });
+  // Load diary once when the palette opens (and refresh when entries change)
+  // so the search input stays snappy on every keystroke.
+  const [diaryEntries, setDiaryEntries] = useState<DiaryEntry[]>([]);
+  useEffect(() => {
+    if (!open || !user) { setDiaryEntries([]); return; }
+    setDiaryEntries(listEntries(user.id));
+    const onChange = () => setDiaryEntries(listEntries(user.id));
+    window.addEventListener("peaceboard:diary-change", onChange);
+    return () => window.removeEventListener("peaceboard:diary-change", onChange);
+  }, [open, user]);
 
   // Open with Cmd/Ctrl + K, close with Escape
   useEffect(() => {
@@ -76,6 +93,7 @@ export default function CommandPalette() {
     { id: "settings", label: "Settings", hint: "Notifications, devices, privacy", icon: SettingsIcon, run: () => go("/settings"), show: !!user },
     { id: "invite", label: "Invite a Friend", hint: "Share PeaceBoard", icon: UserPlus, run: () => go("/settings"), show: !!user },
     { id: "analytics", label: "Open Analytics", hint: "Class & student insights", icon: BarChart3, run: () => go("/analytics"), show: isAdmin },
+    { id: "digest", label: "Weekly Digest", hint: "School snapshot for the week", icon: BarChart3, run: () => go("/digest"), show: isAdmin },
     { id: "admin", label: "Admin Console", hint: "Manage school", icon: Shield, run: () => go("/admin"), show: isAdmin },
     { id: "chat", label: "Open AI Assistant", hint: "Chat with Peace", icon: MessageSquare, run: openChat },
     { id: "theme", label: theme === "light" ? "Switch to Dark Mode" : "Switch to Light Mode", icon: theme === "light" ? Moon : Sun, run: () => { toggleTheme(); setOpen(false); } },
@@ -85,11 +103,38 @@ export default function CommandPalette() {
 
   const items = useMemo(() => {
     const visible = all.filter((c) => c.show !== false);
-    if (!query.trim()) return visible;
-    const q = query.toLowerCase();
-    return visible.filter((c) => c.label.toLowerCase().includes(q) || c.hint?.toLowerCase().includes(q));
+    const q = query.trim().toLowerCase();
+    if (!q) return visible;
+
+    const cmds = visible.filter((c) => c.label.toLowerCase().includes(q) || c.hint?.toLowerCase().includes(q));
+
+    // Search inside games (title + description)
+    const gameMatches: Cmd[] = (gamesQuery.data || [])
+      .filter((g) => g.title.toLowerCase().includes(q) || g.description?.toLowerCase().includes(q))
+      .slice(0, 5)
+      .map((g) => ({
+        id: `game-${g.id}`,
+        label: `🎮 ${g.title}`,
+        hint: `Game · ${g.category} · ${g.difficulty}`,
+        icon: Sparkles,
+        run: () => go("/games"),
+      }));
+
+    // Search inside the user's diary entries (title + body) — local only, never leaves the device
+    const diaryMatches: Cmd[] = diaryEntries
+      .filter((e) => e.title.toLowerCase().includes(q) || e.body.toLowerCase().includes(q) || e.tags?.some(t => t.toLowerCase().includes(q)))
+      .slice(0, 5)
+      .map((e) => ({
+        id: `diary-${e.id}`,
+        label: `${TYPE_META[e.type]?.emoji || "📓"} ${e.title || "(untitled entry)"}`,
+        hint: `Diary · ${new Date(e.createdAt).toLocaleDateString()} · ${e.body.slice(0, 60)}`,
+        icon: FileText,
+        run: () => go("/diary"),
+      }));
+
+    return [...cmds, ...gameMatches, ...diaryMatches];
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, theme, user]);
+  }, [query, theme, user, gamesQuery.data, diaryEntries]);
 
   useEffect(() => {
     if (active >= items.length) setActive(0);
@@ -133,7 +178,7 @@ export default function CommandPalette() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={onListKey}
-                placeholder="Type a command or page…"
+                placeholder="Search pages, games, or your diary…"
                 className="flex-1 bg-transparent outline-none text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400"
               />
               <kbd className="hidden sm:inline-block text-[10px] font-mono bg-slate-100 dark:bg-slate-800 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700">ESC</kbd>

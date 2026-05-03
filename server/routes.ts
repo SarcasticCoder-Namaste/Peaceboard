@@ -932,6 +932,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ─── Teacher / school-admin weekly digest ─────────────────────
+  // A read-only snapshot of how this school's students are doing over the last 7 days.
+  // Returns aggregate counts only — no individual student names or data — so it's
+  // safe to display to any teacher in the school.
+  app.get("/api/digest/weekly", authenticate, async (req: any, res) => {
+    try {
+      const userId = req.user?.id || req.user?.userId;
+      const me = await storage.getUser(userId);
+      if (!me || (me.userType !== "school_admin" && me.userType !== "teacher")) {
+        return res.status(403).json({ message: "Only teachers and school admins can see the digest." });
+      }
+      if (!me.schoolId) {
+        return res.json({ schoolless: true });
+      }
+      const schoolId = me.schoolId;
+      const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+      // Run all the small aggregate queries in parallel
+      const [studentRows, activeRows, gameRows, emotionRows, complimentRows, topGameRows, wellnessRow] = await Promise.all([
+        db.execute(sql`SELECT COUNT(*)::int AS c FROM users WHERE school_id = ${schoolId} AND user_type = 'student' AND is_active = true`),
+        db.execute(sql`SELECT COUNT(DISTINCT up.user_id)::int AS c FROM user_progress up JOIN users u ON u.id = up.user_id WHERE u.school_id = ${schoolId} AND up.created_at >= ${weekAgo}`),
+        db.execute(sql`SELECT COUNT(*)::int AS c, COALESCE(SUM(up.points_earned),0)::int AS pts FROM user_progress up JOIN users u ON u.id = up.user_id WHERE u.school_id = ${schoolId} AND up.completed = true AND up.created_at >= ${weekAgo}`),
+        db.execute(sql`SELECT COUNT(*)::int AS c FROM emotion_logs el JOIN users u ON u.id = el.user_id WHERE u.school_id = ${schoolId} AND el.created_at >= ${weekAgo}`),
+        db.execute(sql`SELECT COUNT(*)::int AS sent, COUNT(*) FILTER (WHERE c.is_flagged)::int AS flagged FROM compliments c JOIN users u ON u.id = c.sender_id WHERE u.school_id = ${schoolId} AND c.created_at >= ${weekAgo}`),
+        db.execute(sql`SELECT g.title, COUNT(*)::int AS plays FROM user_progress up JOIN users u ON u.id = up.user_id JOIN games g ON g.id = up.game_id WHERE u.school_id = ${schoolId} AND up.created_at >= ${weekAgo} GROUP BY g.title ORDER BY plays DESC LIMIT 5`),
+        db.execute(sql`SELECT ROUND(AVG(el.wellness_score))::int AS avg_wellness FROM emotion_logs el JOIN users u ON u.id = el.user_id WHERE u.school_id = ${schoolId} AND el.created_at >= ${weekAgo} AND el.wellness_score IS NOT NULL`),
+      ]);
+
+      const totalStudents = (studentRows.rows[0] as any)?.c || 0;
+      const activeStudents = (activeRows.rows[0] as any)?.c || 0;
+      res.json({
+        schoolless: false,
+        weekStart: weekAgo.toISOString(),
+        totalStudents,
+        activeStudents,
+        engagementRate: totalStudents ? Math.round((activeStudents / totalStudents) * 100) : 0,
+        gamesCompleted: (gameRows.rows[0] as any)?.c || 0,
+        pointsEarned: (gameRows.rows[0] as any)?.pts || 0,
+        emotionCheckIns: (emotionRows.rows[0] as any)?.c || 0,
+        avgWellness: (wellnessRow.rows[0] as any)?.avg_wellness ?? null,
+        complimentsSent: (complimentRows.rows[0] as any)?.sent || 0,
+        complimentsFlagged: (complimentRows.rows[0] as any)?.flagged || 0,
+        topGames: topGameRows.rows.map((r: any) => ({ title: r.title, plays: r.plays })),
+      });
+    } catch (error) {
+      console.error("Error building weekly digest:", error);
+      res.status(500).json({ message: "Failed to build digest" });
+    }
+  });
+
   // ─── Linked devices ──────────────────────────────────────────
   app.get("/api/me/sessions", authenticate, async (req: any, res) => {
     try {
