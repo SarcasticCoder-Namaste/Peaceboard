@@ -119,6 +119,11 @@ PeaceBoard is a comprehensive educational platform focused on empathy-building, 
 
 Changelog:
 - June 28, 2025. Initial setup
+- May 03, 2026. Added MoodHeatmap, EmotionWheel (`/emotion-wheel`), MysteryCard,
+  Bedtime Wind-Down (`/wind-down` — full immersive route, hides global chrome),
+  and Anonymous Compliment Box (`/compliments` — server-backed via new
+  `compliments` table; sender identity is never returned to the recipient,
+  recipient can hide/flag, light kindness word filter on send).
 - March 26, 2026. Comprehensive content expansion:
   - All 9 games expanded to 6-8 scenarios each with detailed educational feedback
   - Music library expanded to 12 tracks with artwork thumbnails and categories

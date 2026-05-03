@@ -788,6 +788,150 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ─── Anonymous compliments ─────────────────────────────────
+  // Token-aware kindness filter — checks whole words, not substrings,
+  // so "you killed it" or "skill" don't trip the 'kill'/'ill' rules.
+  const BANNED_WORDS = new Set([
+    "hate","stupid","ugly","kill","loser","idiot","dumb","shut up","worthless",
+    "fat","retard","stinks","sucks","trash","worst",
+  ]);
+  function containsBannedWord(text: string): boolean {
+    const tokens = text.toLowerCase().replace(/[^a-z\s']/g, " ").split(/\s+/).filter(Boolean);
+    if (tokens.some((t) => BANNED_WORDS.has(t))) return true;
+    // also catch two-word phrases
+    for (let i = 0; i < tokens.length - 1; i++) {
+      if (BANNED_WORDS.has(`${tokens[i]} ${tokens[i + 1]}`)) return true;
+    }
+    return false;
+  }
+
+  const sendComplimentSchema = z.object({
+    recipientId: z.string().trim().min(1).max(64),
+    message: z.string().trim().min(4, "Add a few more kind words").max(280),
+    emoji: z.string().max(8).optional().nullable(),
+  });
+
+  // Send a kind note to another user. Sender identity is stored but never returned to recipient.
+  // Rate-limited: 12 sends per hour per user.
+  app.post("/api/compliments", authenticate, authRateLimit(12, 60), async (req: any, res) => {
+    try {
+      const senderId = req.user?.id || req.user?.userId;
+      if (!senderId) return res.status(401).json({ message: "Not authenticated" });
+
+      const parsed = sendComplimentSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.issues[0]?.message || "Invalid note" });
+      }
+      const { recipientId, message, emoji } = parsed.data;
+
+      if (recipientId === senderId) {
+        return res.status(400).json({ message: "You can't send a compliment to yourself — but you can still feel proud!" });
+      }
+
+      // Audience rule: recipient must be in the same school (and not a guest)
+      const [me, recipient] = await Promise.all([storage.getUser(senderId), storage.getUser(recipientId)]);
+      if (!recipient || recipient.userType === "guest" || recipient.isActive === false) {
+        return res.status(404).json({ message: "Recipient not found." });
+      }
+      const sameSchool = me?.schoolId && recipient.schoolId && me.schoolId === recipient.schoolId;
+      if (!sameSchool) {
+        return res.status(403).json({ message: "You can only send compliments to people in your school." });
+      }
+
+      if (containsBannedWord(message)) {
+        return res.status(422).json({ message: "Compliments only — please rephrase with kind words." });
+      }
+
+      const note = await (storage as any).createCompliment({
+        senderId, recipientId, message, emoji: emoji || null,
+      });
+      res.status(201).json({ id: note.id, recipientId: note.recipientId, message: note.message, emoji: note.emoji, createdAt: note.createdAt });
+    } catch (error) {
+      console.error("Error sending compliment:", error);
+      res.status(500).json({ message: "Failed to send compliment" });
+    }
+  });
+
+  // Inbox — anonymous notes for the signed-in user
+  app.get("/api/compliments/inbox", authenticate, async (req: any, res) => {
+    try {
+      const userId = req.user?.id || req.user?.userId;
+      if (!userId) return res.status(401).json({ message: "Not authenticated" });
+      const rows = await (storage as any).getInboxCompliments(userId);
+      res.json(rows);
+    } catch (error) {
+      console.error("Error loading inbox:", error);
+      res.status(500).json({ message: "Failed to load inbox" });
+    }
+  });
+
+  // Sent box — notes I have sent (so I can see my kindness streak)
+  app.get("/api/compliments/sent", authenticate, async (req: any, res) => {
+    try {
+      const userId = req.user?.id || req.user?.userId;
+      if (!userId) return res.status(401).json({ message: "Not authenticated" });
+      const rows = await (storage as any).getSentCompliments(userId);
+      res.json(rows);
+    } catch (error) {
+      console.error("Error loading sent:", error);
+      res.status(500).json({ message: "Failed to load sent compliments" });
+    }
+  });
+
+  // Mark a note as read / hide / flag — recipient only. Rate-limited to prevent abuse loops.
+  app.patch("/api/compliments/:id", authenticate, authRateLimit(120, 5), async (req: any, res) => {
+    try {
+      const userId = req.user?.id || req.user?.userId;
+      if (!userId) return res.status(401).json({ message: "Not authenticated" });
+      const id = parseInt(req.params.id, 10);
+      if (!Number.isFinite(id)) return res.status(400).json({ message: "Invalid id" });
+      const action = String(req.body?.action || "");
+      let ok = false;
+      if (action === "read")  ok = await (storage as any).markComplimentRead(id, userId);
+      if (action === "hide")  ok = await (storage as any).hideCompliment(id, userId);
+      if (action === "flag")  ok = await (storage as any).flagCompliment(id, userId);
+      if (!ok) return res.status(404).json({ message: "Note not found" });
+      res.json({ ok: true });
+    } catch (error) {
+      console.error("Error updating compliment:", error);
+      res.status(500).json({ message: "Failed to update note" });
+    }
+  });
+
+  // Recipients you may send a compliment to — scoped strictly to your own school.
+  // Returns minimal fields. Users without a school see no one (and the UI prompts to join one).
+  app.get("/api/compliments/recipients", authenticate, async (req: any, res) => {
+    try {
+      const userId = req.user?.id || req.user?.userId;
+      if (!userId) return res.status(401).json({ message: "Not authenticated" });
+      const me = await storage.getUser(userId);
+      if (!me?.schoolId) {
+        return res.json([]); // no school → no roster (privacy)
+      }
+      const rows = await db.select({
+        id: users.id,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        userType: users.userType,
+        classId: users.classId,
+      }).from(users)
+        .where(sql`${users.schoolId} = ${me.schoolId} AND ${users.id} != ${userId} AND ${users.userType} != 'guest' AND ${users.isActive} = true`)
+        .limit(300);
+      // Same class first for students, then the rest of the school
+      const sameClass = me.classId ? rows.filter(r => r.classId === me.classId) : [];
+      const sameClassIds = new Set(sameClass.map(r => r.id));
+      const restOfSchool = rows.filter(r => !sameClassIds.has(r.id));
+      res.json([...sameClass, ...restOfSchool].map(r => ({
+        id: r.id,
+        name: `${r.firstName ?? ""} ${r.lastName ?? ""}`.trim() || "Friend",
+        userType: r.userType,
+      })));
+    } catch (error) {
+      console.error("Error listing recipients:", error);
+      res.status(500).json({ message: "Failed to load recipients" });
+    }
+  });
+
   // ─── Linked devices ──────────────────────────────────────────
   app.get("/api/me/sessions", authenticate, async (req: any, res) => {
     try {

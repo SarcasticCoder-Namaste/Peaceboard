@@ -34,6 +34,7 @@ import InviteLanding from "@/pages/InviteLanding";
 import Garden from "@/pages/Garden";
 import EmotionWheelPage from "@/pages/EmotionWheelPage";
 import WindDown from "@/pages/WindDown";
+import Compliments from "@/pages/Compliments";
 import MobileBottomNav from "@/components/MobileBottomNav";
 import NotFound from "@/pages/not-found";
 
@@ -55,6 +56,7 @@ function Router() {
       <Route path="/garden" component={Garden} />
       <Route path="/emotion-wheel" component={EmotionWheelPage} />
       <Route path="/wind-down" component={WindDown} />
+      <Route path="/compliments" component={Compliments} />
       <Route path="/settings" component={Settings} />
       <Route path="/invite/:code" component={InviteLanding} />
       <Route path="/admin" component={AdminDashboard} />

@@ -189,6 +189,24 @@ export const insertInvitationSchema = createInsertSchema(invitations).omit({
 export type Invitation = typeof invitations.$inferSelect;
 export type InsertInvitation = z.infer<typeof insertInvitationSchema>;
 
+// Anonymous compliments — kindness notes between users (sender hidden from recipient)
+export const compliments = pgTable("compliments", {
+  id: serial("id").primaryKey(),
+  senderId: varchar("sender_id").notNull(),     // never exposed to recipient
+  recipientId: varchar("recipient_id").notNull(),
+  message: text("message").notNull(),
+  emoji: varchar("emoji", { length: 8 }),
+  readAt: timestamp("read_at"),
+  isHidden: boolean("is_hidden").default(false), // recipient can hide a note
+  isFlagged: boolean("is_flagged").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+export const insertComplimentSchema = createInsertSchema(compliments).omit({
+  id: true, readAt: true, isHidden: true, isFlagged: true, createdAt: true,
+});
+export type Compliment = typeof compliments.$inferSelect;
+export type InsertCompliment = z.infer<typeof insertComplimentSchema>;
+
 export const insertMusicFavoriteSchema = createInsertSchema(musicFavorites).omit({ id: true, createdAt: true });
 export const insertMusicHistorySchema  = createInsertSchema(musicHistory).omit({ id: true, playedAt: true });
 export const insertEmotionLogSchema    = createInsertSchema(emotionLogs).omit({ id: true, createdAt: true });

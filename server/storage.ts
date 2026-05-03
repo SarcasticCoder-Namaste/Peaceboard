@@ -10,6 +10,7 @@ import {
   musicHistory,
   emotionLogs,
   invitations,
+  compliments,
   schools,
   userSessions,
   type User,
@@ -34,6 +35,8 @@ import {
   type InsertEmotionLog,
   type Invitation,
   type InsertInvitation,
+  type Compliment,
+  type InsertCompliment,
   type School,
   type UserSession,
 } from "@shared/schema";
@@ -787,5 +790,56 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 }
+
+// ─── Compliments (mixed in via prototype) ─────────────────────────────────
+declare module "./storage" {}
+(DatabaseStorage.prototype as any).createCompliment = async function (input: InsertCompliment): Promise<Compliment> {
+  const [row] = await db.insert(compliments).values(input).returning();
+  return row;
+};
+(DatabaseStorage.prototype as any).getInboxCompliments = async function (recipientId: string): Promise<Array<Omit<Compliment, "senderId">>> {
+  // Critically — do NOT return senderId. Recipients see anonymous notes only.
+  const rows = await db.select({
+    id: compliments.id,
+    recipientId: compliments.recipientId,
+    message: compliments.message,
+    emoji: compliments.emoji,
+    readAt: compliments.readAt,
+    isHidden: compliments.isHidden,
+    isFlagged: compliments.isFlagged,
+    createdAt: compliments.createdAt,
+  }).from(compliments)
+    .where(and(eq(compliments.recipientId, recipientId), eq(compliments.isHidden, false)))
+    .orderBy(desc(compliments.createdAt))
+    .limit(100);
+  return rows as any;
+};
+(DatabaseStorage.prototype as any).getSentCompliments = async function (senderId: string): Promise<Compliment[]> {
+  return db.select().from(compliments)
+    .where(eq(compliments.senderId, senderId))
+    .orderBy(desc(compliments.createdAt))
+    .limit(100);
+};
+(DatabaseStorage.prototype as any).markComplimentRead = async function (id: number, recipientId: string): Promise<boolean> {
+  const result = await db.update(compliments)
+    .set({ readAt: new Date() })
+    .where(and(eq(compliments.id, id), eq(compliments.recipientId, recipientId)))
+    .returning({ id: compliments.id });
+  return result.length > 0;
+};
+(DatabaseStorage.prototype as any).hideCompliment = async function (id: number, recipientId: string): Promise<boolean> {
+  const result = await db.update(compliments)
+    .set({ isHidden: true })
+    .where(and(eq(compliments.id, id), eq(compliments.recipientId, recipientId)))
+    .returning({ id: compliments.id });
+  return result.length > 0;
+};
+(DatabaseStorage.prototype as any).flagCompliment = async function (id: number, recipientId: string): Promise<boolean> {
+  const result = await db.update(compliments)
+    .set({ isFlagged: true, isHidden: true })
+    .where(and(eq(compliments.id, id), eq(compliments.recipientId, recipientId)))
+    .returning({ id: compliments.id });
+  return result.length > 0;
+};
 
 export const storage = new DatabaseStorage();

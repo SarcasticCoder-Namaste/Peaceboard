@@ -1,6 +1,6 @@
 import { db } from "./db";
 import { games, musicTracks } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 const COMPREHENSIVE_GAMES = [
   {
@@ -770,6 +770,23 @@ export async function runMigrations() {
       }
       console.log("Music catalog updated.");
     }
+
+    // Ensure new tables exist (added after initial drizzle push)
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS compliments (
+        id serial PRIMARY KEY,
+        sender_id varchar NOT NULL,
+        recipient_id varchar NOT NULL,
+        message text NOT NULL,
+        emoji varchar(8),
+        read_at timestamp,
+        is_hidden boolean DEFAULT false,
+        is_flagged boolean DEFAULT false,
+        created_at timestamp DEFAULT now()
+      )
+    `);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS compliments_recipient_idx ON compliments (recipient_id, created_at DESC)`);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS compliments_sender_idx ON compliments (sender_id, created_at DESC)`);
 
   } catch (error) {
     console.error("Migration error:", error);
