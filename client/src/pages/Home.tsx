@@ -182,7 +182,6 @@ export default function Home() {
     { title: "Emotion Wheel",    description: "Name what you're feeling",      icon: Sparkles,  color: "from-fuchsia-500 to-violet-600", action: () => setLocation("/emotion-wheel") },
     { title: "Wind Down",        description: "Calm breathing for sleep",       icon: Moon,      color: "from-indigo-500 to-slate-700",   action: () => setLocation("/wind-down") },
     { title: "Compliments",      description: "Send & receive kind notes",      icon: Mail,      color: "from-rose-500 to-pink-600",      action: () => setLocation("/compliments") },
-    { title: "Arcade",           description: "Quick fun mini-games",            icon: Sparkles,  color: "from-fuchsia-500 to-purple-600", action: () => setLocation("/arcade") },
     { title: "View Leaderboard", description: "See where you rank",            icon: Trophy,    color: "from-yellow-500 to-orange-500", action: () => setLocation("/leaderboard") },
     { title: "Your Profile",     description: "Stats, badges & history",        icon: UserIcon,  color: "from-violet-500 to-purple-600", action: () => setLocation("/profile") },
     { title: "Analytics",        description: "Track class growth",             icon: BarChart3, color: "from-cyan-500 to-blue-600",     action: () => setLocation("/analytics"), show: user?.userType === "school_admin" || user?.userType === "teacher" },

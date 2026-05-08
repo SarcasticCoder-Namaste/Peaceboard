@@ -85,7 +85,6 @@ export default function CommandPalette() {
     { id: "home", label: "Go to Home", hint: "Welcome page", icon: Info, run: () => go("/") },
     { id: "dashboard", label: "Open Dashboard", hint: "Your stats & progress", icon: Home, run: () => go("/home"), show: !!user },
     { id: "games", label: "Play Games", hint: "Empathy & kindness games", icon: Gamepad2, run: () => go("/games") },
-    { id: "arcade", label: "Open Arcade", hint: "Quick mini-games · perfect for exhibitions", icon: Sparkles, run: () => go("/arcade") },
     { id: "music", label: "Open Music Center", hint: "Calming sounds & meditation", icon: Music, run: () => go("/music") },
     { id: "leaderboard", label: "View Leaderboard", hint: "Top kindness scores", icon: Trophy, run: () => go("/leaderboard") },
     { id: "emotion", label: "Check Your Emotion", hint: "AI face & mood analysis", icon: Heart, run: () => go("/check-emotion") },
