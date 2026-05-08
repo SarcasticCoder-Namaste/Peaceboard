@@ -36,6 +36,7 @@ import EmotionWheelPage from "@/pages/EmotionWheelPage";
 import WindDown from "@/pages/WindDown";
 import Compliments from "@/pages/Compliments";
 import Digest from "@/pages/Digest";
+import Arcade from "@/pages/Arcade";
 import MobileBottomNav from "@/components/MobileBottomNav";
 import NotFound from "@/pages/not-found";
 
@@ -62,6 +63,7 @@ function Router() {
       <Route path="/invite/:code" component={InviteLanding} />
       <Route path="/admin" component={AdminDashboard} />
       <Route path="/digest" component={Digest} />
+      <Route path="/arcade" component={Arcade} />
       <Route component={NotFound} />
     </Switch>
   );
