@@ -1,8 +1,9 @@
 {
   "version": 2,
+  "name": "peaceboard",
   "buildCommand": "vite build",
   "outputDirectory": "dist/public",
-  "installCommand": "npm install",
+  "installCommand": "npm ci",
   "framework": null,
   "functions": {
     "api/index.ts": {
